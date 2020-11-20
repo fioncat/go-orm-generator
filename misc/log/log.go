@@ -97,3 +97,11 @@ func Error(ss ...interface{}) {
 	msg := joinI(ss...)
 	writeLog("ERR", msg)
 }
+
+func Errorf(layer string, vs ...interface{}) {
+	if !logEnable {
+		return
+	}
+	msg := fmt.Sprintf(layer, vs...)
+	writeLog("ERR", msg)
+}
