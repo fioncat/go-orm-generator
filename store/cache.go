@@ -26,7 +26,13 @@ func SaveCache(base, key string, v interface{}) error {
 	if !enableCache {
 		return nil
 	}
-	return Save("cache_"+base, key, v, cacheTTL)
+	err := Save("cache_"+base, key, v, cacheTTL)
+	if err != nil {
+		return err
+	}
+	log.Infof("save cache base=%s key=%s ttl=%s",
+		base, key, cacheTTL.String())
+	return nil
 }
 
 func GetCache(base, key string, v interface{}) bool {

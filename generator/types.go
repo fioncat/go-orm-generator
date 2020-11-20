@@ -28,6 +28,7 @@ func (i *Import) String() string {
 }
 
 type TaskStruct struct {
+	Line    int
 	Options []TaskOption
 	Name    string
 	Args    []string

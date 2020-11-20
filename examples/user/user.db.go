@@ -10,6 +10,9 @@ import (
 // User ...
 type User struct {
 	// +gendb-struct user
+	// +gendb-ignore is_delete
+	// +gendb-type is_admin bool
+	// +gendb-type status int32
 	*userORM
 }
 

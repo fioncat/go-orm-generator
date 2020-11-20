@@ -12,7 +12,10 @@ import (
 type ActionFunc func(ctx *Context) bool
 
 type Operation struct {
+	Name     string
 	ParamPtr interface{}
+	Usage    string
+	Help     string
 
 	Action ActionFunc
 
@@ -253,8 +256,8 @@ func argOutofRange(arg string, idx, len int) (_ map[string]interface{}, err erro
 	return
 }
 
-var genop *Operation
+var ops = make(map[string]*Operation)
 
 func Register(op *Operation) {
-	genop = op
+	ops[op.Name] = op
 }
