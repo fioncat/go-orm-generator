@@ -1,10 +1,64 @@
+-- !add
+INSERT INTO user(name, email, phone, age)
+VALUES (${u.Name}, ${u.Email}, ${u.Phone}, ${u.Age})
 
--- addUser
+-- !update
+UPDATE user SET
+  name=${u.Name},
+  email=${u.Email},
+  phone=${u.Phone},
+  age=${u.Age}
+
+WHERE id=${u.Id}
+
+-- !findById
 SELECT
-  u.id,
-  u.name,
-  u.age
+	id,
+	name,
+	email,
+	phone,
+	age,
+	create_time,
+	password,
+	is_admin
+FROM user
+WHERE id=${id}
 
-FROM user u;
 
+-- !search
+SELECT
+	id,
+	name,
+	email,
+	phone,
+	age,
+	create_time,
+	password,
+	is_admin
+FROM user
+WHERE is_delete=0 AND #{where}
+
+
+-- !searchConds
+SELECT
+  id,
+  name,
+  email,
+  phone,
+  age,
+  create_time,
+  password,
+  is_admin
+FROM user
+WHERE email=${email} OR phone=${phone}
+
+
+-- !count
+SELECT COUNT(1)
+FROM user
+
+
+-- !countAdmin
+SELECT COUNT(1) FROM user
+WHERE is_admin=${admin}
 

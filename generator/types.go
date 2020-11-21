@@ -39,6 +39,7 @@ func (t *TaskStruct) OptionNames() []string {
 }
 
 type TaskInterface struct {
+	Line    int
 	Options []TaskOption
 	Name    string
 	Methods []TaskMethod
@@ -50,6 +51,8 @@ func (t *TaskInterface) OptionNames() []string {
 }
 
 type TaskMethod struct {
+	Line int
+
 	Name string
 
 	Params     string
@@ -84,4 +87,20 @@ func OptionNames(opts []TaskOption) []string {
 		names[i] = name
 	}
 	return names
+}
+
+type SQLFile map[string]SQL
+
+func (f SQLFile) Merge(of SQLFile) {
+	for key, file := range of {
+		f[key] = file
+	}
+}
+
+type SQL struct {
+	Line     int
+	Name     string
+	Content  string
+	Prepares []string
+	Replaces []string
 }

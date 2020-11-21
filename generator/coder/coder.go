@@ -3,6 +3,7 @@ package coder
 import (
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -50,6 +51,8 @@ func (c *Coder) AddConst(name string, vs ...interface{}) {
 
 func (c *Coder) P(n int, vs ...interface{}) {
 	code := comb(vs...)
+	prefix := strings.Repeat("\t", n)
+	code = prefix + code
 	c.Contents = append(c.Contents, code)
 }
 
@@ -114,9 +117,15 @@ func (c *Coder) genImport() []string {
 func (c *Coder) genVars(def string, vs []Var) []string {
 	lines := make([]string, 0, 2+len(c.Vars))
 	lines = append(lines, fmt.Sprintf("%s (", def))
+	align := 0
+	for _, v := range vs {
+		if len(v.Name) > align {
+			align = len(v.Name)
+		}
+	}
 	for _, v := range vs {
 		lines = append(lines, fmt.Sprintf(
-			"\t%s = %s", v.Name, v.Value))
+			"\t%s = %s", StrAlign(v.Name, align), v.Value))
 	}
 	lines = append(lines, ")")
 	return lines
@@ -203,4 +212,9 @@ func Unexport(s string) string {
 		return string(unicode.ToLower(rune(s[0])))
 	}
 	return string(unicode.ToLower(rune(s[0]))) + s[1:]
+}
+
+func StrAlign(s string, fix int) string {
+	format := "%-" + strconv.Itoa(fix) + "s"
+	return fmt.Sprintf(format, s)
 }

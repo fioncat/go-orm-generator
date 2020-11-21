@@ -95,6 +95,7 @@ func parseGolang(path string, t *generator.Task, lines []string, start int) erro
 				if imp == nil {
 					return errors.Line(path, j+1, goImpBadFmt)
 				}
+				t.Imports = append(t.Imports, *imp)
 				log.Infof(" > import %s", imp.String())
 			}
 			if !stopped {
