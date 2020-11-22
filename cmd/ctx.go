@@ -9,6 +9,7 @@ import (
 
 func Init() {
 	Register(genOp)
+	Register(cleanOp)
 	Register(connSetOp)
 	Register(connGetOp)
 	Register(connDelOp)
@@ -22,8 +23,8 @@ type Context struct {
 }
 
 func (ctx *Context) Usage() {
-	fmt.Printf("Usage: gogendb %s\n", ctx.op.Usage)
-	fmt.Printf("Use \"godb %s -h\" for more information\n", ctx.op.Name)
+	fmt.Printf("Usage: go-gendb %s\n", ctx.op.Usage)
+	fmt.Printf("Use \"go-gendb %s -h\" for more information\n", ctx.op.Name)
 }
 
 func (ctx *Context) MainUsage() {
@@ -35,7 +36,7 @@ func (ctx *Context) Param() interface{} {
 }
 
 func (ctx *Context) Help() {
-	fmt.Printf("Usage: gogendb %s\n", ctx.op.Usage)
+	fmt.Printf("Usage: go-gendb %s\n", ctx.op.Usage)
 	fmt.Println(ctx.op.Help)
 }
 
@@ -72,7 +73,7 @@ func New(args []string) *Context {
 			fmt.Printf("help: unknown command \"%s\"\n", cmd)
 			os.Exit(1)
 		}
-		fmt.Printf("Usage: godb %s\n", op.Usage)
+		fmt.Printf("Usage: go-gendb %s\n", op.Usage)
 		fmt.Println(op.Help)
 		os.Exit(0)
 	case "-v", "version":
@@ -82,7 +83,7 @@ func New(args []string) *Context {
 
 	ctx.op = ops[master]
 	if ctx.op == nil {
-		fmt.Printf("godb: unknown command \"%s\"\n", master)
+		fmt.Printf("go-gendb: unknown command \"%s\"\n", master)
 		os.Exit(1)
 	}
 	args = args[1:]

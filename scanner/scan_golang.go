@@ -86,6 +86,9 @@ func parseGolang(path string, t *generator.Task, lines []string, start int) erro
 			stopped := false
 			for j := start; j < len(lines); j++ {
 				line := parser.TS(lines[j])
+				if line == "" {
+					continue
+				}
 				if line == ")" {
 					idx = j
 					stopped = true
