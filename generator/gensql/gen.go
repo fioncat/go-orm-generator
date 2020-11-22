@@ -48,6 +48,10 @@ func (*Generator) Generate(c *coder.Coder, file generator.File) {
 
 var runnerPath = "github.com/fioncat/go-gendb/api/sqlrunner"
 
+func SetRunnerPath(path string) {
+	runnerPath = path
+}
+
 func genInter(c *coder.Coder, r *sqlResult) {
 	for name, path := range r.imports {
 		c.AddImport(name, path)
@@ -60,7 +64,7 @@ func genInter(c *coder.Coder, r *sqlResult) {
 	c.P(0, "type ", structName, " struct {")
 	c.P(0, "}")
 	c.Empty()
-	c.AddVar(r.name, "&", structName, "{}")
+	c.AddVar(r.name+"Oper", "&", structName, "{}")
 
 	for _, method := range r.methods {
 		// sql content const

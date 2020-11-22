@@ -46,6 +46,7 @@ func (ctx *Context) MainHelp() {
 func New(args []string) *Context {
 	args = args[1:]
 	ctx := new(Context)
+	ctx.help = help
 	if len(args) == 0 {
 		ctx.MainUsage()
 		os.Exit(1)

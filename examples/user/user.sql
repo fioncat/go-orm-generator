@@ -1,64 +1,26 @@
--- !add
-INSERT INTO user(name, email, phone, age)
-VALUES (${u.Name}, ${u.Email}, ${u.Phone}, ${u.Age})
+-- !Add
+INSERT INTO user(name, email, phone, age, password)
+VALUES (${u.Name}, ${u.Email}, ${u.Phone}, ${u.Password});
 
--- !update
-UPDATE user SET
-  name=${u.Name},
-  email=${u.Email},
-  phone=${u.Phone},
-  age=${u.Age}
+-- !Update
+UPDATE user SET name=${u.Name}, email=${u.Email}, phone=${u.Phone}, password=${u.Password}
+WHERE id=${u.Id};
 
-WHERE id=${u.Id}
+-- !FindByID
+SELECT id, name, email, phone, age, password, create_time, is_admin
+FROM user WHERE id=${id};
 
--- !findById
-SELECT
-	id,
-	name,
-	email,
-	phone,
-	age,
-	create_time,
-	password,
-	is_admin
+-- !FindByName
+SELECT id, name, email, phone, age, password, create_time, is_admin
+FROM user WHERE name=${name};
+
+-- !Search
+SELECT id, name, email, phone, age, password, create_time, is_admin
 FROM user
-WHERE id=${id}
+WHERE 1=1 #{where}
+LIMIT ${offset}, ${limit};
 
-
--- !search
-SELECT
-	id,
-	name,
-	email,
-	phone,
-	age,
-	create_time,
-	password,
-	is_admin
-FROM user
-WHERE is_delete=0 AND #{where}
-
-
--- !searchConds
-SELECT
-  id,
-  name,
-  email,
-  phone,
-  age,
-  create_time,
-  password,
-  is_admin
-FROM user
-WHERE email=${email} OR phone=${phone}
-
-
--- !count
+-- !Count
 SELECT COUNT(1)
 FROM user
-
-
--- !countAdmin
-SELECT COUNT(1) FROM user
-WHERE is_admin=${admin}
-
+WHERE 1=1 #{where};

@@ -6,10 +6,6 @@ import (
 	"fmt"
 )
 
-func Replaces(vs ...interface{}) []interface{} {
-	return vs
-}
-
 type IDB interface {
 	Query(sql string, vs ...interface{}) (*sql.Rows, error)
 	Exec(sql string, vs ...interface{}) (sql.Result, error)

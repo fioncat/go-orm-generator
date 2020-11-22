@@ -7,8 +7,8 @@ import (
 	time "time"
 )
 
-// userORM
-type userORM struct {
+// UserORM
+type UserORM struct {
 	// Id 用户id
 	Id int64 `table:"user" field:"id"`
 	// Name 用户名
