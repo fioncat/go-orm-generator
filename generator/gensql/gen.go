@@ -64,15 +64,17 @@ func genInter(c *coder.Coder, r *sqlResult) {
 	c.P(0, "type ", structName, " struct {")
 	c.P(0, "}")
 	c.Empty()
-	c.AddVar(r.name+"Oper", "&", structName, "{}")
+	c.P(0, "var ", r.name, "Oper ", r.name, " = &", structName, "{}")
+	c.Empty()
+	// c.AddVar(r.name+"Oper", "&", structName, "{}")
 
 	for _, method := range r.methods {
 		// sql content const
-		constName := fmt.Sprintf("sql_%s", method.name)
+		constName := fmt.Sprintf("sql_%s_%s", r.name, method.name)
 		c.AddConst(constName, coder.Quote(method.sql))
 
 		// sql runner variable
-		runnerName := fmt.Sprintf("runner_%s", method.name)
+		runnerName := fmt.Sprintf("runner_%s_%s", r.name, method.name)
 		c.AddVar(runnerName, "runner.New(", constName, ")")
 
 		// method definition
@@ -108,6 +110,7 @@ func genMethodBody(c *coder.Coder, m sqlMethod, runnerName string) {
 		}
 		return
 	}
+	c.AddImport("sql", "database/sql")
 
 	if m.sqlType == sqlQueryOne || m.sqlType == sqlCount {
 		c.P(1, "var o ", m.retType)

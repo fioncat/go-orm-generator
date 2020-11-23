@@ -1,5 +1,7 @@
 package coder
 
+import "github.com/fioncat/go-gendb/misc/col"
+
 type Coder struct {
 	Source string
 
@@ -11,6 +13,8 @@ type Coder struct {
 	Structs []Struct
 
 	Contents []string
+
+	importsSet col.Set
 }
 
 type Var struct {

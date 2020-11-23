@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/fioncat/go-gendb/build"
+	"github.com/fioncat/go-gendb/misc/col"
 )
 
 var codePrefix = []string{
@@ -34,6 +35,14 @@ func (c *Coder) AddStruct(s Struct) {
 }
 
 func (c *Coder) AddImport(name, path string) {
+	if c.importsSet == nil {
+		c.importsSet = col.NewSet(0)
+	}
+	if c.importsSet.Exists(name) {
+		return
+	}
+	c.importsSet.Add(name)
+
 	var imp Import
 	imp.Name = name
 	imp.Path = path

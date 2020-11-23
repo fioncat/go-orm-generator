@@ -79,6 +79,8 @@ func SQL(path string) (generator.SQLFile, error) {
 			parser.SQLParam(sql.Content)
 		log.Infof("  # %s: prepares=%v replaces=%v",
 			name, sql.Prepares, sql.Replaces)
+		sql.Content = strings.Join(
+			strings.Fields(sql.Content), " ")
 		file[name] = sql
 	}
 

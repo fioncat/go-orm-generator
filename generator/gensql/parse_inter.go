@@ -72,13 +72,6 @@ func parseInter(task *generator.Task, it generator.TaskInterface) (*generator.Fi
 	file.methods = make([]sqlMethod, len(it.Methods))
 	file.imports = make(map[string]string)
 	for i, taskMethod := range it.Methods {
-		// The parameter must include db, indicating
-		// a database connection.
-		if !taskMethod.ParamNames.Exists("db") {
-			err := errors.Fmt(`missing "db" param for method %s`,
-				taskMethod.Name)
-			return nil, errors.Line(task.Path, taskMethod.Line, err)
-		}
 		var method sqlMethod
 		method.name = taskMethod.Name
 		method.definition = taskMethod.String()

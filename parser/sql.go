@@ -66,13 +66,17 @@ func extractFields(clause string) []string {
 		hasAlias := len(fieldParts) > 1
 		namePart := fieldParts[len(fieldParts)-1]
 
-		subParts := strings.Split(namePart, ".")
-		subPart := subParts[len(subParts)-1]
+		subPart := namePart
+		if !hasAlias {
+			subParts := strings.Split(namePart, ".")
+			subPart = subParts[len(subParts)-1]
+		}
 
 		if subPart == "" {
 			continue
 		}
 
+		subPart = strings.ReplaceAll(subPart, "`", "")
 		var name string
 		if hasAlias {
 			name = subPart
