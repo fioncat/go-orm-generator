@@ -13,14 +13,19 @@ import (
 )
 
 type genArg struct {
-	LogPath     string `flag:"log-file"`
-	EnableLog   bool   `flag:"log"`
-	EnableCache bool   `flag:"cache"`
-	CacheTTL    string `flag:"cache-ttl"`
-	ConnKey     string `flag:"conn"`
-	Runner      string `flag:"runner"`
+	LogPath     string `flag:"log-file" json:"log-file"`
+	EnableLog   bool   `flag:"log" json:"log"`
+	EnableCache bool   `flag:"cache" json:"cache"`
+	CacheTTL    string `flag:"cache-ttl" json:"cache-ttl"`
+	ConnKey     string `flag:"conn" json:"conn-key"`
+	Runner      string `flag:"runner" json:"runner"`
 
-	Path string `arg:"path"`
+	DBUse    string `flag:"db-use" json:"db-use"`
+	DBImport string `flag:"db-import" json:"db-import"`
+
+	ConfPath string `flag:"conf-path"`
+
+	Path string `arg:"path" json:"path"`
 }
 
 var genOp = &Operation{
@@ -32,6 +37,15 @@ var genOp = &Operation{
 
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*genArg)
+		if arg.ConfPath != "" {
+			err := store.UnmarshalConf(arg.ConfPath, &arg)
+			if err != nil {
+				fmt.Printf("unmarshal conf file failed: %v\n", err)
+				return false
+			}
+			log.Infof("Read args from '%s': %+v",
+				arg.ConfPath, arg)
+		}
 		if arg.EnableLog {
 			log.Init(true, arg.LogPath)
 		}
@@ -58,6 +72,12 @@ var genOp = &Operation{
 					arg.ConnKey, err)
 				return false
 			}
+		}
+		if arg.DBUse != "" {
+			gensql.SetDBUse(arg.DBUse)
+		}
+		if arg.DBImport != "" {
+			gensql.SetDBImport(arg.DBImport)
 		}
 		err := genfile.Do(arg.Path)
 		if err != nil {

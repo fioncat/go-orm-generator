@@ -3,6 +3,7 @@ package coder
 import (
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -113,6 +114,9 @@ func (c *Coder) genPkg() string {
 }
 
 func (c *Coder) genImport() []string {
+	sort.Slice(c.Imports, func(i, j int) bool {
+		return c.Imports[i].Name < c.Imports[j].Name
+	})
 	lines := make([]string, 0, 2+len(c.Imports))
 	lines = append(lines, "import (")
 	for _, imp := range c.Imports {

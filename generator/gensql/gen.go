@@ -2,6 +2,7 @@ package gensql
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/fioncat/go-gendb/generator"
@@ -52,11 +53,27 @@ func SetRunnerPath(path string) {
 	runnerPath = path
 }
 
+var (
+	dbUse    = "db"
+	dbImport = ""
+)
+
+func SetDBUse(use string) {
+	dbUse = use
+}
+
+func SetDBImport(imp string) {
+	dbImport = imp
+}
+
 func genInter(c *coder.Coder, r *sqlResult) {
 	for name, path := range r.imports {
 		c.AddImport(name, path)
 	}
 	c.AddImport("runner", runnerPath)
+	if dbImport != "" {
+		c.AddImport(filepath.Base(dbImport), dbImport)
+	}
 
 	// generate interface implement
 	structName := r.name + "Impl"
@@ -102,11 +119,11 @@ func genMethodBody(c *coder.Coder, m sqlMethod, runnerName string) {
 	if !m.isQuery() && m.sqlType != sqlCount {
 		switch m.sqlType {
 		case sqlExecAffect:
-			c.P(1, "return ", runnerName, ".ExecAffect(db, ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".ExecAffect(", dbUse, ", ", rep, ", ", pre, ")")
 		case sqlExecLastid:
-			c.P(1, "return ", runnerName, ".ExecLastId(db, ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".ExecLastId(", dbUse, ", ", rep, ", ", pre, ")")
 		case sqlExecResult:
-			c.P(1, "return ", runnerName, ".Exec(db, ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".Exec(", dbUse, ", ", rep, ", ", pre, ")")
 		}
 		return
 	}
@@ -114,7 +131,7 @@ func genMethodBody(c *coder.Coder, m sqlMethod, runnerName string) {
 
 	if m.sqlType == sqlQueryOne || m.sqlType == sqlCount {
 		c.P(1, "var o ", m.retType)
-		c.P(1, "err := ", runnerName, ".QueryOne(db, ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
+		c.P(1, "err := ", runnerName, ".QueryOne(", dbUse, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
 
 		if strings.HasPrefix(m.retType, "*") {
 			retType := strings.TrimLeft(m.retType, "*")
@@ -135,7 +152,7 @@ func genMethodBody(c *coder.Coder, m sqlMethod, runnerName string) {
 	objType := strings.TrimLeft(m.retType, "[]")
 
 	c.P(1, "var os ", m.retType)
-	c.P(1, "err := ", runnerName, ".QueryMany(db, ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
+	c.P(1, "err := ", runnerName, ".QueryMany(", dbUse, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
 	if strings.HasPrefix(objType, "*") {
 		objType = strings.TrimLeft(objType, "*")
 		c.P(2, "o := new(", objType, ")")
