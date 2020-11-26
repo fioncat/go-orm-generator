@@ -1,15 +1,18 @@
 package scanner
 
 import (
+	"io/ioutil"
 	"strings"
 
 	"github.com/fioncat/go-gendb/misc/col"
-	"github.com/fioncat/go-gendb/scanner/sql"
+	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/scanner/token"
 )
 
 type SQLResult struct {
-	Path string
+	Path string `json:"path"`
+
+	Sqls []SQL `json:"sqls"`
 
 	nameSet col.Set
 }
@@ -17,53 +20,154 @@ type SQLResult struct {
 type SQL struct {
 	Name     string        `json:"name"`
 	Tokens   []token.Token `json:"-"`
+	SQL      string        `json:"sql"`
 	TokenStr string        `json:"tokens"`
 }
 
-func SQLFile(path string) (*SQLResult, error) {
+var (
+	errEmptyName      = errors.New("name is empty")
+	errNameDuplcate   = errors.New("name is duplcate")
+	errSQLUnknownType = errors.New("unknown sql type")
+	errEmptySQL       = errors.New("sql statement is empty")
+)
 
+func SQLFile(path string, debug bool) (*SQLResult, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var r SQLResult
+	r.nameSet = col.NewSet(0)
+	scanner := newLines(string(data))
+	for {
+		line, num := scanner.next()
+		if num == -1 {
+			break
+		}
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "-- !") {
+			name := strings.TrimLeft(line, "-- !")
+			name = strings.TrimSpace(name)
+			if name == "" {
+				return nil, errors.Line(errEmptyName, num)
+			}
+			if r.nameSet.Exists(name) {
+				return nil, errors.Line(errNameDuplcate, num)
+			}
+
+			var sql SQL
+			sql.Name = name
+			r.nameSet.Add(name)
+
+			// Scan sql statement...
+			var sqlLines []string
+			for {
+				pickLine := scanner.pick()
+				if strings.HasPrefix(pickLine, "-- !") {
+					break
+				}
+				line, num := scanner.next()
+
+				if num == -1 {
+					break
+				}
+				if line == "" || strings.HasPrefix(line, "--") {
+					continue
+				}
+				sqlLines = append(sqlLines, line)
+			}
+			sqlContent := strings.Join(sqlLines, " ")
+			sql.SQL = sqlContent
+			sql.Tokens, err = scanSQL(sqlContent)
+			if err != nil {
+				return nil, errors.Line(err, num)
+			}
+			if debug {
+				sql.TokenStr = token.Join(sql.Tokens)
+			}
+
+			r.Sqls = append(r.Sqls, sql)
+		}
+	}
+	return &r, nil
 }
 
-func scanSQL(s string) []token.Token {
+var SQLKeywords = col.NewSetBySlice(
+	"SELECT", "FROM", "IFNULL", "COUNT",
+)
+
+func scanSQL(s string) ([]token.Token, error) {
+	if len(s) <= 7 {
+		return nil, errEmptySQL
+	}
+	master := s[:6]
+	masterUp := strings.ToUpper(master)
+	switch masterUp {
+	case "UPDATE", "DELETE", "INSERT":
+		return []token.Token{token.NewFlag(masterUp)}, nil
+	case "SELECT":
+	default:
+		return nil, errSQLUnknownType
+	}
+
 	scanner := newChars(s)
-	var bucket []rune
 	var tokens []token.Token
-	addToken := func() {
-		str := string(bucket)
-		key := strings.ToUpper(str)
-		if sql.Keywords.Exists(key) {
+	var bucket []rune
+	addBucket := func() {
+		if len(bucket) == 0 {
+			return
+		}
+		key := upBucket(bucket)
+		if SQLKeywords.Exists(key) {
 			tokens = append(tokens, token.NewFlag(key))
 		} else {
 			tokens = append(tokens,
-				token.NewIndent(str))
+				token.NewIndent(string(bucket)))
 		}
 		bucket = nil
 	}
+	addFlag := func(r rune) {
+		addBucket()
+		tokens = append(tokens, token.NewFlag(string(r)))
+	}
 	for {
-		rune, ok := scanner.next()
+		ch, ok := scanner.next()
 		if !ok {
+			addBucket()
 			break
 		}
-		if rune == ' ' || rune == '\n' {
-			if len(bucket) == 0 {
-				continue
-			}
-			addToken()
-			// After add keyword/indent, add a space
-			tokens = append(tokens, token.NewFlag(sql.SPACE))
-			bucket = nil
+		if ch == ' ' || ch == '\t' || ch == '\n' {
+			addBucket()
 			continue
 		}
+		switch ch {
+		case '(':
+			addFlag('(')
 
-		bucket = append(bucket, rune)
-		key := strings.ToUpper(string(bucket))
-		if sql.Keywords.Exists(key) {
-			tokens = append(tokens, token.NewFlag(key))
-			bucket = nil
+		case ')':
+			addFlag(')')
+
+		case '.':
+			addFlag('.')
+
+		case ',':
+			addFlag(',')
+
+		case '\'':
+		case '`':
+
+		default:
+			bucket = append(bucket, ch)
 		}
 	}
-	if len(bucket) > 0 {
-		addToken()
-	}
-	return tokens
+	addBucket()
+	return tokens, nil
+}
+
+func upBucket(bucket []rune) string {
+	s := string(bucket)
+	return strings.ToUpper(s)
 }

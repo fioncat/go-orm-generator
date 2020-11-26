@@ -26,6 +26,12 @@ var scanOp = &Operation{
 			if err == nil {
 				term.Show(res)
 			}
+		case "sql":
+			var res *scanner.SQLResult
+			res, err = scanner.SQLFile(arg.Path, true)
+			if err == nil {
+				term.Show(res)
+			}
 		default:
 			fmt.Printf(`unknown mode "%s"`, arg.Mode)
 			return false

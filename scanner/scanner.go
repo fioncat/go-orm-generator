@@ -22,6 +22,13 @@ func (s *lineScanner) next() (string, int) {
 	return strings.TrimSpace(line), num
 }
 
+func (s *lineScanner) pick() string {
+	if s.idx+1 >= len(s.lines) {
+		return ""
+	}
+	return s.lines[s.idx+1]
+}
+
 type fieldScanner struct {
 	idx    int
 	fields []string
@@ -42,6 +49,7 @@ func (s *fieldScanner) next() (string, bool) {
 }
 
 type charScanner struct {
+	ch    rune
 	idx   int
 	runes []rune
 }
