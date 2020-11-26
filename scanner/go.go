@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/scanner/token"
 )
 
 type GoResult struct {
@@ -44,9 +45,11 @@ type GoInterface struct {
 }
 
 type GoMethod struct {
-	Line  int     `json:"line"`
-	Tags  []GoTag `json:"tags"`
-	Token string  `json:"token"`
+	Line     int           `json:"line"`
+	Tags     []GoTag       `json:"tags"`
+	Def      string        `json:"def"`
+	TokenStr string        `json:"tokens"`
+	Tokens   []token.Token `json:"-"`
 }
 
 var (
@@ -56,7 +59,7 @@ var (
 	errPkgEmpty = errors.New("empty package name")
 )
 
-func Go(path string) (*GoResult, error) {
+func Go(path string, debug bool) (*GoResult, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -71,7 +74,7 @@ func Go(path string) (*GoResult, error) {
 	}
 	res.Path = path
 
-	err = scanBody(scanner, res)
+	err = scanBody(scanner, res, debug)
 	if err != nil {
 		return nil, errors.TraceFile(err, path)
 	}
@@ -202,7 +205,7 @@ var (
 	errInterfaceNoMethod = errors.New("interface has no method")
 )
 
-func scanBody(s *lineScanner, r *GoResult) error {
+func scanBody(s *lineScanner, r *GoResult, debug bool) error {
 	var tags []GoTag
 	for {
 		line, num := s.next()
@@ -256,9 +259,17 @@ func scanBody(s *lineScanner, r *GoResult) error {
 				}
 
 				var method GoMethod
-				method.Token = line
+				var err error
+				method.Tokens, err = scanGoMethod(line)
+				if err != nil {
+					return errors.Line(err, num)
+				}
+				method.Def = line
 				method.Tags = tags
 				method.Line = num
+				if debug {
+					method.TokenStr = token.Join(method.Tokens)
+				}
 
 				inter.Methods = append(inter.Methods, method)
 				tags = nil
@@ -302,4 +313,70 @@ func parseInterfaceName(line string) string {
 			return field
 		}
 	}
+}
+
+var (
+	errSliceFmt = errors.New("slice bad format, need '[]'")
+)
+
+func scanGoMethod(def string) ([]token.Token, error) {
+	scanner := newChars(def)
+
+	var tokens []token.Token
+	var bucket []rune
+	addBucket := func() {
+		if len(bucket) == 0 {
+			return
+		}
+		s := string(bucket)
+		tokens = append(tokens, token.NewIndent(s))
+		bucket = nil
+	}
+	addFlag := func(s string) {
+		addBucket()
+		tokens = append(tokens, token.NewFlag(s))
+	}
+	for {
+		ch, ok := scanner.next()
+		if !ok {
+			addBucket()
+			break
+		}
+
+		if ch == ' ' {
+			addBucket()
+			continue
+		}
+
+		switch ch {
+		case '(':
+			addFlag("(")
+
+		case ')':
+			addFlag(")")
+
+		case '[':
+			next, ok := scanner.next()
+			if !ok || next != ']' {
+				return nil, errSliceFmt
+			}
+			addFlag("[]")
+
+		case '*':
+			addFlag("*")
+
+		case ',':
+			addFlag(",")
+
+		case '.':
+			addFlag(".")
+
+		default:
+			bucket = append(bucket, ch)
+
+		}
+	}
+
+	return tokens, nil
+
 }
