@@ -14,11 +14,37 @@ func New(s string) error {
 	return errbase.New(s)
 }
 
-func Trace(reason string, err error) error {
-	return Fmt("%s: %v", reason, err)
+type CompileError struct {
+	File  string
+	Line  int
+	Pos   int
+	Cause error
 }
 
-func Line(path string, line int, err error) error {
-	reason := fmt.Sprintf("%s:%d", path, line)
-	return Trace(reason, err)
+func (e *CompileError) Error() string {
+	if e.Pos == 0 {
+		return fmt.Sprintf("%s:%d: %v", e.File, e.Line, e.Cause)
+	}
+	return fmt.Sprintf("%s:%d:%d: %v",
+		e.File, e.Line, e.Pos, e.Cause)
+}
+
+func Line(err error, line int) error {
+	return &CompileError{Cause: err, Line: line}
+}
+
+func Pos(err error, line, pos int) error {
+	return &CompileError{Cause: err, Line: line, Pos: pos}
+}
+
+func TraceFile(err error, path string) error {
+	if ce, ok := err.(*CompileError); ok {
+		ce.File = path
+		return ce
+	}
+	return Fmt("%s: %v", path, err)
+}
+
+func Trace(msg string, err error) error {
+	return Fmt("%s: %v", msg, err)
 }
