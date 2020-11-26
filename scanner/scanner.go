@@ -50,12 +50,11 @@ func newChars(content string) *charScanner {
 	return &charScanner{runes: []rune(content)}
 }
 
-func (s *charScanner) next() (rune, int) {
+func (s *charScanner) next() (rune, bool) {
 	if s.idx >= len(s.runes) {
-		return 0, -1
+		return 0, false
 	}
 	rune := s.runes[s.idx]
-	pos := s.idx + 1
 	s.idx += 1
-	return rune, pos
+	return rune, true
 }

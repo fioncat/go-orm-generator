@@ -275,7 +275,7 @@ func scanBody(s *lineScanner, r *GoResult) error {
 			continue
 		}
 
-		if len(tags) > 0 {
+		if len(tags) > 0 && !strings.HasPrefix(line, "//") {
 			var indent GoIndent
 			indent.Line = num
 			indent.Token = line
