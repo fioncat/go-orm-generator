@@ -161,7 +161,22 @@ func scanSQL(s string) ([]token.Token, error) {
 			addFlag(',')
 
 		case '\'':
+			fallthrough
 		case '`':
+			addBucket()
+			var quotes []rune
+			for {
+				ch, ok := scanner.next()
+				if !ok {
+					return nil, errors.New("Quote bad format")
+				}
+				if ch == '\'' || ch == '`' {
+					break
+				}
+				quotes = append(quotes, ch)
+			}
+			quoteToken := token.NewIndent(string(quotes))
+			tokens = append(tokens, quoteToken)
 
 		default:
 			bucket = append(bucket, ch)

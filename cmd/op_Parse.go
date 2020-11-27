@@ -22,7 +22,6 @@ var parseOp = &Operation{
 			fmt.Println(err)
 			return false
 		}
-		fmt.Println("scan done.")
 
 		switch sr.Type {
 		case "sql":

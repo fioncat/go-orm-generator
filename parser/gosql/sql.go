@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	sqlExecAffect = iota
-	sqlExecLastid
-	sqlExecResult
-	sqlQueryMany
-	sqlQueryOne
+	sqlExecAffect = "Exec_Affect"
+	sqlExecLastid = "Exec_lastId"
+	sqlExecResult = "Exec_Result"
+	sqlQueryMany  = "Query_Many"
+	sqlQueryOne   = "Query_One"
 )
 
 func (p *parser) sql(r *Method, m scanner.GoMethod, sql string) error {

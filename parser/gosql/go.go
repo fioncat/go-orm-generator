@@ -17,53 +17,76 @@ import (
 )
 
 type OperResult struct {
-	Name    string
-	Methods []Method
+	Name    string   `json:"name"`
+	Methods []Method `json:"methods"`
+
+	src string
+	key string
+}
+
+func (r *OperResult) Source() string {
+	return r.src
+}
+
+func (r *OperResult) Key() string {
+	return r.key
+}
+
+func (r *OperResult) Generator() string {
+	return "sql-oper"
 }
 
 type Method struct {
-	Type int
-	Name string
-	SQL  SQL
+	Type string `json:"type"`
+	Name string `json:"name"`
+	SQL  SQL    `json:"sql"`
 
-	Def string
+	Def string `json:"def"`
 
-	RetType    string
-	RetSlice   bool
-	RetPointer bool
+	RetType    string `json:"ret_type"`
+	RetSlice   bool   `json:"ret_slice"`
+	RetPointer bool   `json:"ret_pointer"`
 
-	Imports []coder.Import
+	Imports []coder.Import `json:"imports"`
 
-	QueryFields []QueryField
+	QueryFields []QueryField `json:"query_fields"`
 
 	importNames col.Set
 }
 
 type QueryField struct {
-	Table string
-	Field string
-	Alias string
+	Table string `json:"table"`
+	Field string `json:"field"`
+	Alias string `json:"alias"`
 }
 
 type SQL struct {
-	String   string
-	Prepares []string
-	Replaces []string
+	String   string   `json:"string"`
+	Prepares []string `json:"prepares"`
+	Replaces []string `json:"replaces"`
 }
 
 func Parse(sr *scanner.GoResult, debug bool) ([]common.Result, error) {
 	dir := filepath.Dir(sr.Path)
+	var results []common.Result
 	for _, inter := range sr.Interfaces {
 		var result OperResult
 		err := parseInterface(&result, sr, inter, dir)
 		if err != nil {
 			return nil, errors.TraceFile(err, sr.Path)
 		}
-		if debug {
-			fmt.Printf(">>>> interface: %s\n", inter.Name)
-			for _, m := range result.Methods {
-				fmt.Println(m.Def)
-				term.Show(m)
+		result.src = sr.Path
+		result.key = fmt.Sprintf("oper.%s", inter.Name)
+		results = append(results, &result)
+	}
+
+	if debug {
+		fmt.Println("// interfaces")
+		for _, r := range results {
+			if or, ok := r.(*OperResult); ok {
+				fmt.Printf("// type %s interface\n", or.Name)
+				term.Show(or)
+				fmt.Println()
 			}
 		}
 	}
