@@ -14,6 +14,10 @@ type StructResult struct {
 	Structs []coder.Struct
 }
 
+func (r *StructResult) SetSource(path string) {
+	r.src = path
+}
+
 func (r *StructResult) Source() string {
 	return r.src
 }

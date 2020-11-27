@@ -18,6 +18,8 @@ type SQLResult struct {
 }
 
 type SQL struct {
+	Path     string        `json:"-"`
+	Line     int           `json:"line"`
 	Name     string        `json:"name"`
 	Tokens   []token.Token `json:"-"`
 	SQL      string        `json:"sql"`
@@ -80,6 +82,8 @@ func SQLFile(path string, debug bool) (*SQLResult, error) {
 				sqlLines = append(sqlLines, line)
 			}
 			sqlContent := strings.Join(sqlLines, " ")
+			sql.Path = path
+			sql.Line = num
 			sql.SQL = sqlContent
 			sql.Tokens, err = scanSQL(sqlContent)
 			if err != nil {
@@ -170,4 +174,60 @@ func scanSQL(s string) ([]token.Token, error) {
 func upBucket(bucket []rune) string {
 	s := string(bucket)
 	return strings.ToUpper(s)
+}
+
+type Placeholders struct {
+	SQL      string
+	Replaces []string
+	Prepares []string
+}
+
+func SQLPlaceholders(s string) (*Placeholders, error) {
+	chs := make([]rune, 0, len(s))
+	p := newChars(s)
+	ph := new(Placeholders)
+	for {
+		ch, ok := p.next()
+		if !ok {
+			break
+		}
+		if ch != '$' && ch != '#' {
+			chs = append(chs, ch)
+			continue
+		}
+		nextCh, ok := p.next()
+		if !ok || nextCh != '{' {
+			return nil, errors.Fmt(`the char next '$'/'#'`+
+				` must be '{', found: '%s'`, string(nextCh))
+		}
+
+		var nameChs []rune
+		for {
+			nextCh, ok = p.next()
+			if !ok {
+				return nil, errors.New(`can not find '}'` +
+					` for placeholder`)
+			}
+			if nextCh == '}' {
+				break
+			}
+			nameChs = append(nameChs, nextCh)
+		}
+		if len(nameChs) == 0 {
+			return nil, errors.New("found empty placeholder")
+		}
+		switch ch {
+		case '$':
+			ph.Prepares = append(ph.Prepares, string(nameChs))
+			chs = append(chs, '?')
+
+		case '#':
+			ph.Replaces = append(ph.Replaces, string(nameChs))
+			chs = append(chs, '%')
+			chs = append(chs, 'v')
+		}
+	}
+	ph.SQL = string(chs)
+	ph.SQL = strings.Join(strings.Fields(ph.SQL), " ")
+	return ph, nil
 }

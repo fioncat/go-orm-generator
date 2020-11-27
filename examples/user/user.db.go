@@ -9,7 +9,7 @@ type User struct {
 	UserORM
 }
 
-// +gendb oper user.sql
+// +gendb user.sql
 type UserDB interface {
 	Add(db *sql.DB, u *User) (int64, error)
 	Update(db *sql.DB, u *User) (int64, error)

@@ -13,6 +13,7 @@ func Init() {
 	Register(connGetOp)
 	Register(connDelOp)
 	Register(scanOp)
+	Register(parseOp)
 }
 
 type Context struct {

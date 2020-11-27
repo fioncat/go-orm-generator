@@ -39,6 +39,9 @@ func Pos(err error, line, pos int) error {
 
 func TraceFile(err error, path string) error {
 	if ce, ok := err.(*CompileError); ok {
+		if ce.File != "" {
+			return err
+		}
 		ce.File = path
 		return ce
 	}
