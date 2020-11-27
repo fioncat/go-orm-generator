@@ -20,12 +20,7 @@ type OperResult struct {
 	Name    string   `json:"name"`
 	Methods []Method `json:"methods"`
 
-	src string
 	key string
-}
-
-func (r *OperResult) Source() string {
-	return r.src
 }
 
 func (r *OperResult) Key() string {
@@ -55,15 +50,15 @@ type Method struct {
 }
 
 type QueryField struct {
-	Table string `json:"table"`
-	Field string `json:"field"`
-	Alias string `json:"alias"`
+	Table string
+	Field string
+	Alias string
 }
 
 type SQL struct {
-	String   string   `json:"string"`
-	Prepares []string `json:"prepares"`
-	Replaces []string `json:"replaces"`
+	String   string
+	Prepares []string
+	Replaces []string
 }
 
 func Parse(sr *scanner.GoResult, debug bool) ([]common.Result, error) {
@@ -75,7 +70,6 @@ func Parse(sr *scanner.GoResult, debug bool) ([]common.Result, error) {
 		if err != nil {
 			return nil, errors.TraceFile(err, sr.Path)
 		}
-		result.src = sr.Path
 		result.key = fmt.Sprintf("oper.%s", inter.Name)
 		results = append(results, &result)
 	}
@@ -91,7 +85,7 @@ func Parse(sr *scanner.GoResult, debug bool) ([]common.Result, error) {
 		}
 	}
 
-	return nil, nil
+	return results, nil
 }
 
 var (
@@ -433,13 +427,14 @@ func (p *parser) method() (*Method, error) {
 			return nil, errors.Line(err, p.line)
 		}
 	}
+	token, _ = p.next()
 	next, _ := p.pick()
 	if next.Flag == "." {
 		m.importNames.Add(token.Indent)
 		m.RetType = token.Indent + "."
 		p.next()
+		token, _ = p.next()
 	}
-	token, _ = p.next()
 	if token.Indent == "" {
 		err := errors.Fmt(`except INDENT for first `+
 			`return, found: "%s"`, token.Flag)

@@ -14,6 +14,34 @@ const (
 	sqlQueryOne   = "Query_One"
 )
 
+func (m *Method) IsExec() bool {
+	switch m.Type {
+	case sqlExecResult, sqlExecLastid, sqlExecAffect:
+		return true
+	}
+	return false
+}
+
+func (m *Method) IsAffect() bool {
+	return m.Type == sqlExecAffect
+}
+
+func (m *Method) IsLastId() bool {
+	return m.Type == sqlExecLastid
+}
+
+func (m *Method) IsResult() bool {
+	return m.Type == sqlExecResult
+}
+
+func (m *Method) IsQueryOne() bool {
+	return m.Type == sqlQueryOne
+}
+
+func (m *Method) IsQueryMany() bool {
+	return m.Type == sqlQueryMany
+}
+
 func (p *parser) sql(r *Method, m scanner.GoMethod, sql string) error {
 	phs, err := scanner.SQLPlaceholders(sql)
 	if err != nil {

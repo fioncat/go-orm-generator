@@ -51,3 +51,5 @@ func TraceFile(err error, path string) error {
 func Trace(msg string, err error) error {
 	return Fmt("%s: %v", msg, err)
 }
+
+var ErrInvalidType = errbase.New("invalid type")
