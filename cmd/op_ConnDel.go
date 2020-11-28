@@ -8,8 +8,12 @@ import (
 )
 
 var connDelOp = &Operation{
-	Name:     "del-conn",
+	Name:     "conn-del",
 	ParamPtr: (*connArg)(nil),
+
+	Usage: connDelUsage,
+	Help:  connDelHelp,
+
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*connArg)
 		if arg.EnableLog {
@@ -23,3 +27,10 @@ var connDelOp = &Operation{
 		return true
 	},
 }
+
+const connDelUsage = `conn-del <key>`
+
+const connDelHelp = `
+Delete connection by the key.
+
+See alse: conn-set, conn-get`

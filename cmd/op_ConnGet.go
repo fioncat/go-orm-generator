@@ -15,8 +15,12 @@ type connArg struct {
 }
 
 var connGetOp = &Operation{
-	Name:     "get-conn",
+	Name:     "conn-get",
 	ParamPtr: (*connArg)(nil),
+
+	Usage: connGetUsage,
+	Help:  connGetHelp,
+
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*connArg)
 		if arg.EnableLog {
@@ -31,3 +35,17 @@ var connGetOp = &Operation{
 		return true
 	},
 }
+
+const connGetUsage = `conn-get <key>`
+
+const connGetHelp = `
+Show the database connection in json-form.
+
+Specify the connection to be showed through
+the connection key.
+
+For example, to show the "test" connection can use:
+
+go-gendb conn-get test
+
+See also: conn-set, conn-del`
