@@ -8,11 +8,13 @@ import (
 )
 
 func Init() {
-	Register(genOp)
 	Register(cleanOp)
 	Register(connSetOp)
 	Register(connGetOp)
 	Register(connDelOp)
+	Register(scanOp)
+	Register(parseOp)
+	Register(genOp)
 }
 
 type Context struct {

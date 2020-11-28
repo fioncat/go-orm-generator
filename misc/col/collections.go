@@ -6,6 +6,14 @@ func NewSet(n int) Set {
 	return make(Set, n)
 }
 
+func NewSetBySlice(ss ...string) Set {
+	set := NewSet(len(ss))
+	for _, s := range ss {
+		set.Add(s)
+	}
+	return set
+}
+
 func (s Set) Add(key string) {
 	s[key] = struct{}{}
 }
