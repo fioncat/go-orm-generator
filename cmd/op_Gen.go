@@ -13,7 +13,7 @@ var genOp = &Operation{
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*dogen.Arg)
 		dogen.Prepare(arg)
-		return dogen.One(arg.Path, arg.ConfPath)
+		return dogen.One(arg.Path, arg.ConfPath, "")
 	},
 }
 

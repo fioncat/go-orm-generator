@@ -25,7 +25,7 @@ var scanOp = &Operation{
 		switch arg.Mode {
 		case "go":
 			var res *scanner.GoResult
-			res, err = scanner.Go(arg.Path, true)
+			res, err = scanner.GoFile(arg.Path, true)
 			if err == nil {
 				term.Show(res)
 			}

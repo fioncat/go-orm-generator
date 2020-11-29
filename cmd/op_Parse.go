@@ -20,7 +20,7 @@ var parseOp = &Operation{
 
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*ParseArg)
-		sr, err := scanner.Go(arg.Path, false)
+		sr, err := scanner.GoFile(arg.Path, false)
 		if err != nil {
 			fmt.Println(err)
 			return false
