@@ -17,7 +17,7 @@ var genOp = &Operation{
 	},
 }
 
-const genUsage = `go-gendb gen [flags] <file-path>`
+const genUsage = `gen [flags] <file-path>`
 
 const genHelp = `
 Gen reads the Go source code file, and generates
