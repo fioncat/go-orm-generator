@@ -59,13 +59,16 @@ var (
 	errPkgEmpty = errors.New("empty package name")
 )
 
-func Go(path string, debug bool) (*GoResult, error) {
+func GoFile(path string, debug bool) (*GoResult, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-
 	content := string(data)
+	return Go(path, content, debug)
+}
+
+func Go(path, content string, debug bool) (*GoResult, error) {
 	hasImport := strings.Contains(content, "import")
 	scanner := newLines(content)
 	res, err := scanHeader(scanner, hasImport)

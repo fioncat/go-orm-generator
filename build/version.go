@@ -5,7 +5,7 @@ import (
 	"runtime"
 )
 
-const VERSION = "0.0.2"
+const VERSION = "0.0.3"
 
 func ShowVersion() {
 	fmt.Printf("go-gendb v%s on %s\n", VERSION, runtime.GOOS)

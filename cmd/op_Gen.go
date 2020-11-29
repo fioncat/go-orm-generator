@@ -13,11 +13,11 @@ var genOp = &Operation{
 	Action: func(ctx *Context) bool {
 		arg := ctx.Param().(*dogen.Arg)
 		dogen.Prepare(arg)
-		return dogen.One(arg.Path, arg.ConfPath)
+		return dogen.One(arg.Path, arg.ConfPath, "")
 	},
 }
 
-const genUsage = `go-gendb gen [flags] <file-path>`
+const genUsage = `gen [flags] <file-path>`
 
 const genHelp = `
 Gen reads the Go source code file, and generates

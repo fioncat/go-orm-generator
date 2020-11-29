@@ -55,12 +55,18 @@ func Prepare(arg *Arg) {
 	}
 }
 
-func One(path, confPath string) bool {
+func One(path, confPath string, content string) bool {
 	tt := trace.NewTimer("gen:" + path)
 	defer tt.Trace()
 
 	tt.Start("scan")
-	sr, err := scanner.Go(path, false)
+	var sr *scanner.GoResult
+	var err error
+	if content == "" {
+		sr, err = scanner.GoFile(path, false)
+	} else {
+		sr, err = scanner.Go(path, content, false)
+	}
 	if err != nil {
 		return onErr(err)
 	}

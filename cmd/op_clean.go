@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -19,8 +18,6 @@ var cleanOp = &Operation{
 	Help:  cleanHelp,
 
 	Action: func(ctx *Context) bool {
-		fileNameRe := regexp.MustCompile(`zz_generated\\.[^\\.]+\\.go`)
-
 		paths := make([]string, 0)
 		err := filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -33,7 +30,8 @@ var cleanOp = &Operation{
 			if strings.HasPrefix(fileName, ".") {
 				return nil
 			}
-			if fileNameRe.MatchString(fileName) {
+			if strings.HasPrefix(fileName, "zz_generated.") &&
+				strings.HasSuffix(fileName, ".go") {
 				paths = append(paths, path)
 			}
 			return nil
