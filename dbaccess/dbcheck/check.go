@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,16 +19,17 @@ import (
 	"github.com/fioncat/go-gendb/misc/term"
 	"github.com/fioncat/go-gendb/misc/trace"
 	"github.com/fioncat/go-gendb/scanner"
+	"github.com/fioncat/go-gendb/store"
 )
 
 var sliceMu sync.Mutex
 
 type Arg struct {
-	Mode     string `flag:"mode"`
-	Batch    bool   `flag:"batch"`
-	Params   string `flag:"p"`
-	Log      bool   `flag:"log"`
-	SQLNames string `flag:"sql"`
+	Mode      string `flag:"mode"`
+	Batch     bool   `flag:"batch"`
+	ParamPath string `flag:"p"`
+	Log       bool   `flag:"log"`
+	SQLNames  string `flag:"sql"`
 
 	ConnKey string `arg:"conn-key"`
 	Path    string `arg:"path"`
@@ -136,11 +138,16 @@ func Run(arg *Arg) bool {
 		return false
 	}
 
-	tt.Start("parse-param")
-	params, err := parseParam(arg.Params)
-	if err != nil {
-		errMsg("parse params failed", err)
-		return false
+	tt.Start("init-param")
+	var params params
+	if arg.ParamPath != "" {
+		err := store.UnmarshalConf(arg.ParamPath, &params)
+		if err != nil {
+			errMsg("read params failed", err)
+			return false
+		}
+	} else {
+		params = make(map[string]interface{})
 	}
 	filterSet, hasFilter := parseSqlNames(arg.SQLNames)
 
@@ -222,6 +229,9 @@ func Run(arg *Arg) bool {
 		return groupSlice[i][0].path < groupSlice[j][0].path
 	})
 
+	errCnt := 0
+	warnCnt := 0
+	okCnt := 0
 	for _, results := range groupSlice {
 		sort.Slice(results, func(i, j int) bool {
 			return results[i].name < results[j].name
@@ -230,21 +240,28 @@ func Run(arg *Arg) bool {
 		for _, result := range results {
 			fmt.Printf("  sql: %s", result.name)
 			if result.res.Err != nil {
+				errCnt++
 				err := result.res.Err
 				fmt.Printf("\n    %s\n", term.Red("error: "+err.Error()))
 				continue
 			}
 			if len(result.res.Warns) > 0 {
+				warnCnt++
 				fmt.Println()
 				for _, warn := range result.res.Warns {
 					fmt.Printf("    %s\n", term.Warn("warn: "+warn))
 				}
 			} else {
+				okCnt++
 				fmt.Println(term.Info(" [ok]"))
 			}
 		}
 		fmt.Println()
 	}
+	fmt.Printf("\nCheck done, report: OK=%s, Error=%s, Warn=%s\n",
+		term.Info(strconv.Itoa(okCnt)),
+		term.Red(strconv.Itoa(errCnt)),
+		term.Warn(strconv.Itoa(warnCnt)))
 
 	return true
 }
@@ -284,27 +301,6 @@ func getPaths(arg *Arg) ([]string, error) {
 }
 
 type params map[string]interface{}
-
-func parseParam(p string) (params, error) {
-	if p == "" {
-		return make(params), nil
-	}
-	ps := strings.Split(p, ",")
-	m := make(params, len(ps))
-	for _, pv := range ps {
-		kvs := strings.Split(pv, ":")
-		if len(kvs) != 2 {
-			return nil, errors.Fmt(`key-value "%s" bad format`, pv)
-		}
-		key := kvs[0]
-		val := kvs[1]
-		if _, ok := m[key]; ok {
-			return nil, errors.Fmt(`key "%s" is duplicate`, key)
-		}
-		m[key] = val
-	}
-	return m, nil
-}
 
 func parseSqlNames(p string) (col.Set, bool) {
 	if p == "" {
