@@ -16,6 +16,7 @@ func Init() {
 	Register(parseOp)
 	Register(genOp)
 	Register(batchOp)
+	Register(checkSQLOp)
 }
 
 type Context struct {

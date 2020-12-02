@@ -40,3 +40,11 @@ func (s *Session) Desc(tableName string) (*dbtypes.Table, error) {
 	}
 	return descTable, nil
 }
+
+func (s *Session) Check(sql string, prepares []interface{}) *dbtypes.CheckResult {
+	dr, err := desc(s.db, sql, prepares)
+	if err != nil {
+		return &dbtypes.CheckResult{Err: err}
+	}
+	return checkResult(dr)
+}

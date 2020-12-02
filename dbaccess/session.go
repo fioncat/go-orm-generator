@@ -28,6 +28,7 @@ func SetConn(key string) error {
 type Session interface {
 	Connect(conn *store.Conn) error
 	Desc(table string) (*dbtypes.Table, error)
+	Check(sql string, prepares []interface{}) *dbtypes.CheckResult
 }
 
 var (
@@ -88,4 +89,12 @@ func Desc(dbType, table string) (*dbtypes.Table, error) {
 			key, conn.Key, err)
 	}
 	return descTable, nil
+}
+
+func Check(dbType, sql string, args []interface{}) (*dbtypes.CheckResult, error) {
+	sess, err := getSession(dbType)
+	if err != nil {
+		return nil, err
+	}
+	return sess.Check(sql, args), nil
 }

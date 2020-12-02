@@ -11,3 +11,8 @@ type Field struct {
 	Comment string
 	Type    string
 }
+
+type CheckResult struct {
+	Err   error
+	Warns []string
+}
