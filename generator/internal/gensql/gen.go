@@ -78,6 +78,10 @@ func (*Generator) Generate(c *coder.Coder, r common.Result, confPath string) err
 		genMethodBody(c, m, runnerName, arg)
 		c.P(0, "}")
 		c.Empty()
+
+		for _, imp := range m.Imports {
+			c.AddImport(imp.Name, imp.Path)
+		}
 	}
 
 	return nil
