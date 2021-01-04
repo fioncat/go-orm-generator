@@ -13,6 +13,7 @@ type Set struct {
 // New creates a new Set using the specified elements.
 func New(eles ...string) *Set {
 	set := new(Set)
+	set.m = make(map[string]int, len(eles))
 	for _, ele := range eles {
 		set.Append(ele)
 	}
@@ -28,6 +29,12 @@ func (s *Set) Append(ele string) {
 	}
 	s.m[ele] = len(s.slice)
 	s.slice = append(s.slice, ele)
+}
+
+// Contains returns whether "ele" is exists in the set.
+func (s *Set) Contains(ele string) bool {
+	_, ok := s.m[ele]
+	return ok
 }
 
 // Slice returns the set data as a slice.

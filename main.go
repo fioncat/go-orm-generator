@@ -1,21 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"os"
+	"runtime"
 
-	"github.com/fioncat/go-gendb/misc/iter"
+	"github.com/fioncat/go-gendb/cmd"
+	"github.com/fioncat/go-gendb/misc/term"
 )
 
 func main() {
-	ss := []string{
-		"a", "b", "c",
-		"asd", "nihao",
-		"我是谁?",
+	// enable color only in unix-like term.
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+		term.EnableColor()
 	}
-
-	iter := iter.New(ss)
-	var s string
-	for iter.Next(&s) {
-		fmt.Println(s)
-	}
+	cmd.Execute(os.Args)
 }

@@ -1,6 +1,10 @@
 package token
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/fioncat/go-gendb/misc/set"
+)
 
 // Token is the smallest unit produced by lexical analysis.
 // It can be keywords, symbols, variables, etc. The original
@@ -85,6 +89,8 @@ func Key(key string) Token {
 type Bucket struct {
 	tokens []Token
 	buff   []rune
+
+	keywords *set.Set
 }
 
 // NewBucket creates a new empty Bucket
@@ -97,13 +103,34 @@ func (b *Bucket) Append(c rune) {
 	b.buff = append(b.buff, c)
 }
 
+// SetKeywords set some keywords. If the keyword hits when adding
+// indent, it will be added in the way of key token.
+func (b *Bucket) SetKeywords(kws []string) {
+	for i, kw := range kws {
+		kws[i] = strings.ToUpper(kw)
+	}
+	b.keywords = set.New(kws...)
+}
+
 // Indent force convert buffer into indent token and append it
 // to the tokens slice.
+// Note that if SetKeywords has been called, and the content of
+// the buffer happens to be one of the keywords, it will increase
+// in the way of the key token.
 func (b *Bucket) Indent() {
 	if len(b.buff) == 0 {
 		return
 	}
 	s := string(b.buff)
+	if b.keywords != nil {
+		if b.keywords.Contains(strings.ToUpper(s)) {
+			// The indent is a keyword, add as key
+			b.tokens = append(b.tokens,
+				Key(strings.ToUpper(s)))
+			b.buff = nil
+			return
+		}
+	}
 	b.tokens = append(b.tokens, Indent(s))
 	b.buff = nil
 }
@@ -119,12 +146,20 @@ func (b *Bucket) Get() []Token {
 	return b.tokens
 }
 
+func (b *Bucket) AddToken(t Token) {
+	b.tokens = append(b.tokens, t)
+}
+
 // common key tokens.
 var (
 	EMPTY = Key("")
 	SPACE = Key(" ")
 
-	QUO = Key(`"`)
+	BREAK = Key("\n")
+	TABLE = Key("\t")
+
+	QUO  = Key(`"`)
+	SQUO = Key(`'`)
 
 	LPAREN = Key("(")
 	RPAREN = Key(")")
@@ -157,13 +192,21 @@ var (
 	GO_COMMENT   = Key("//")
 )
 
+// SQL tags
+var (
+	SQL_TAG     = Key("-- !")
+	SQL_COMMENT = Key("--")
+)
+
 // SQL keywords
 var (
 	SQL_SELECT = Key("SELECT")
 	SQL_FROM   = Key("FROM")
+	SQL_INNER  = Key("INNER")
 	SQL_LEFT   = Key("LEFT")
 	SQL_RIGHT  = Key("RIGHT")
 	SQL_JOIN   = Key("JOIN")
+	SQL_ON     = Key("ON")
 	SQL_WHERE  = Key("WHERE")
 	SQL_ORDER  = Key("ORDER")
 	SQL_BY     = Key("BY")
@@ -172,12 +215,18 @@ var (
 	SQL_IFNULL = Key("IFNULL")
 	SQL_LIMIT  = Key("LIMIT")
 
+	SQL_UPDATE = Key("UPDATE")
+	SQL_DELETE = Key("DELETE")
+	SQL_INSERT = Key("INSERT")
+
 	SQL_Keywords = []string{
 		SQL_SELECT.Get(),
 		SQL_FROM.Get(),
+		SQL_INNER.Get(),
 		SQL_LEFT.Get(),
 		SQL_RIGHT.Get(),
 		SQL_JOIN.Get(),
+		SQL_ON.Get(),
 		SQL_WHERE.Get(),
 		SQL_ORDER.Get(),
 		SQL_BY.Get(),

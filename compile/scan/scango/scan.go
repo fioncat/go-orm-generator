@@ -1,9 +1,11 @@
 package scango
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/iter"
@@ -16,9 +18,9 @@ import (
 // can be marked by multiple tags.
 type Flag struct {
 	// Line number of the go element.
-	Line int
-	// marked tags
-	Tags []Tag
+	Line int `json:"line"`
+	// arked tags
+	Tags []Tag `json:"tags"`
 }
 
 // Tag represents a basic go-gendb tag. It is a
@@ -78,7 +80,9 @@ type Method struct {
 	Origin string `json:"origin"`
 
 	// All scanned tokens for the method.
-	Tokens []token.Token `json:"tokens"`
+	Tokens []token.Token `json:"-"`
+
+	TokenStr string `json:"tokens"`
 }
 
 // Interface represents the interface defined in go,
@@ -174,6 +178,7 @@ func header(path string, iter *iter.Iter, hasImport bool) (*Result, error) {
 			break
 		}
 		lineNum := idx + 1
+		line = strings.TrimSpace(line)
 
 		if isTag(line) {
 			// master tag
@@ -272,6 +277,7 @@ func body(path string, iter *iter.Iter, result *Result) error {
 		if idx < 0 {
 			return nil
 		}
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
@@ -307,6 +313,7 @@ func body(path string, iter *iter.Iter, result *Result) error {
 			// Scan all methods for interface
 			for {
 				idx = iter.NextP(&line)
+				line = strings.TrimSpace(line)
 				if idx < 0 || token.RBRACE.EqString(line) {
 					break
 				}
@@ -331,6 +338,14 @@ func body(path string, iter *iter.Iter, result *Result) error {
 				method.Origin = line
 				method.Tags = tags
 				method.Line = lineNum
+
+				if build.DEBUG {
+					ts := fmt.Sprint(method.Tokens)
+					if len(ts) > 2 {
+						ts = ts[1 : len(ts)-1]
+						method.TokenStr = ts
+					}
+				}
 
 				inter.Methods = append(inter.Methods, method)
 				tags = nil
@@ -361,7 +376,7 @@ func body(path string, iter *iter.Iter, result *Result) error {
 }
 
 func isTag(line string) bool {
-	return token.TAG_NAME.Prefix(line)
+	return token.TAG_PREFIX.Prefix(line)
 }
 
 // convert line into tag struct.
