@@ -47,6 +47,29 @@ func New(slice interface{}) *Iter {
 // must be equal to the type of the slice element. Otherwise, the
 // function will panic.
 func (iter *Iter) NextP(v interface{}) int {
+	idx := iter.Pick(v)
+	if idx < 0 {
+		return -1
+	}
+	iter.idx += 1
+	return idx
+}
+
+// Next is same as NextP, except that it returns
+// whether the iteration is over.
+func (iter *Iter) Next(v interface{}) bool {
+	if v == nil {
+		if iter.idx >= iter.slen {
+			return false
+		}
+		iter.idx += 1
+		return true
+	}
+	return iter.NextP(v) >= 0
+}
+
+// Pick returns the current element, but does not change the counter.
+func (iter *Iter) Pick(v interface{}) int {
 	tar := reflect.ValueOf(v)
 	if tar.Kind() != reflect.Ptr {
 		panic("passed a non-pointer param to Next")
@@ -57,30 +80,28 @@ func (iter *Iter) NextP(v interface{}) int {
 		return -1
 	}
 
-	curidx := iter.idx
-	cur := iter.slice.Index(curidx)
-	iter.idx += 1
-
+	cur := iter.slice.Index(iter.idx)
 	tar.Elem().Set(cur)
 
-	return curidx
-}
-
-// Next is same as NextP, except that it returns
-// whether the iteration is over.
-func (iter *Iter) Next(v interface{}) bool {
-	return iter.NextP(v) >= 0
-}
-
-// Pick returns the current element, but does not change the counter.
-func (iter *Iter) Pick() interface{} {
-	if iter.idx >= iter.slen {
-		return nil
-	}
-	return iter.slice.Index(iter.idx).Interface()
+	return iter.idx
 }
 
 // Reset set the counter to zero.
 func (iter *Iter) Reset() {
 	iter.idx = 0
+}
+
+func (iter *Iter) Previous(v interface{}) int {
+	tar := reflect.ValueOf(v)
+	if tar.Kind() != reflect.Ptr {
+		panic("passed a non-pointer param to Next")
+	}
+	pidx := iter.idx - 1
+	if pidx < 0 {
+		return -1
+	}
+	pre := iter.slice.Index(pidx)
+	tar.Elem().Set(pre)
+
+	return pidx
 }

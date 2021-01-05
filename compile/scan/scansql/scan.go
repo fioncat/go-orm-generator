@@ -98,12 +98,12 @@ func file(path, content string) (*Result, error) {
 			sm.Name = name
 
 			var sqlLines []string
+			var pickLine string
 			for {
-				pick := iter.Pick()
-				if pick == nil {
+				idx := iter.Pick(&pickLine)
+				if idx < 0 {
 					break
 				}
-				pickLine := pick.(string)
 				if token.SQL_TAG.Prefix(pickLine) {
 					break
 				}

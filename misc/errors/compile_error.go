@@ -1,6 +1,10 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/fioncat/go-gendb/compile/token"
+)
 
 type CompileError struct {
 	Path    string
@@ -28,4 +32,35 @@ func NewComp(path string, lineNum int, msg string, vs ...interface{}) *CompileEr
 		CharNum: -1,
 		Msg:     fmt.Sprintf(msg, vs...),
 	}
+}
+
+type ParseErrorFactory struct {
+	path    string
+	lineNum int
+}
+
+func NewParseFactory(path string, lineNum int) *ParseErrorFactory {
+	return &ParseErrorFactory{
+		path:    path,
+		lineNum: lineNum,
+	}
+}
+
+func (f *ParseErrorFactory) EarlyEnd(expect string) error {
+	return NewComp(f.path, f.lineNum, `expect "%s", but reach the end`, expect)
+}
+
+func (f *ParseErrorFactory) MismatchS(chNum int, expect string, found token.Token) error {
+	return NewComp(f.path, f.lineNum, `expect "%s", found %s`,
+		expect, found.String()).WithCharNum(chNum)
+}
+
+func (f *ParseErrorFactory) Mismatch(chNum int, expect, found token.Token) error {
+	return NewComp(f.path, f.lineNum, `expect "%s", found "%s"`,
+		expect.String(), found.String()).WithCharNum(chNum)
+}
+
+func (f *ParseErrorFactory) Empty(chNum int, name string) error {
+	return NewComp(f.path, f.lineNum, "%s is empty", name).WithCharNum(chNum)
+
 }

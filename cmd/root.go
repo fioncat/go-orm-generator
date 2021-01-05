@@ -13,6 +13,7 @@ var cmds = make(map[string]*cmdt.Command)
 
 func init() {
 	cmds["scan"] = scanCmd
+	cmds["parse"] = parseCmd
 }
 
 func getCmd(name string) *cmdt.Command {

@@ -70,6 +70,10 @@ func (t Token) Contains(s string) bool {
 	return strings.Contains(s, t.token)
 }
 
+func (t Token) Match(ot Token) bool {
+	return t.Get() == ot.Get()
+}
+
 // Indent creates a new indent token.
 func Indent(indent string) Token {
 	return Token{isIndent: true, token: indent}
@@ -190,6 +194,7 @@ var (
 	GO_INTERFACE = Key("interface")
 	GO_TYPE      = Key("type")
 	GO_COMMENT   = Key("//")
+	GO_ERROR     = Key("error")
 )
 
 // SQL tags
@@ -214,6 +219,7 @@ var (
 	SQL_GROUP  = Key("GROUP")
 	SQL_IFNULL = Key("IFNULL")
 	SQL_LIMIT  = Key("LIMIT")
+	SQL_COUNT  = Key("COUNT")
 
 	SQL_UPDATE = Key("UPDATE")
 	SQL_DELETE = Key("DELETE")
@@ -234,5 +240,12 @@ var (
 		SQL_GROUP.Get(),
 		SQL_IFNULL.Get(),
 		SQL_LIMIT.Get(),
+		SQL_COUNT.Get(),
 	}
+)
+
+// SQL Plarceholders
+var (
+	SQLPH_PRE = Key("$")
+	SQLPH_REP = Key("#")
 )
