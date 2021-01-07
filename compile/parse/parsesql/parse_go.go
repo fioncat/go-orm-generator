@@ -96,7 +96,7 @@ type Method struct {
 
 	// RetStruct represents the structure that this method needs
 	// to generate. Only applicable to the "auto-ret" configuration.
-	RetStruct *coder.Struct `json:"ret_struct"`
+	RetStruct *coder.Struct `json:"-"`
 
 	// Imports represents the external imports used by
 	// this method.
@@ -107,6 +107,7 @@ type Method struct {
 	// NOTE: This field is only used in query statements.
 	QueryFields []QueryField `json:"query_fields"`
 
+	IsAutoRet   bool
 	QueryTables []QueryTable `json:"query_tables"`
 
 	// use for check duplcate imports.
@@ -189,6 +190,8 @@ type Parser struct {
 func (*Parser) Do(sr *scango.Result) ([]generate.Result, error) {
 	dir := filepath.Dir(sr.Path)
 	var results []generate.Result
+
+	// interface -> dbOper
 	for _, inter := range sr.Interfaces {
 		var oper OperResult
 		err := _interface(&oper, sr, &inter, dir)
@@ -197,6 +200,13 @@ func (*Parser) Do(sr *scango.Result) ([]generate.Result, error) {
 		}
 		oper.key = fmt.Sprintf("oper.%s", inter.Name)
 		results = append(results, &oper)
+
+		// auto-ret structs
+		for _, m := range oper.Methods {
+			if m.IsAutoRet && m.RetStruct != nil {
+				results = append(results, m.RetStruct)
+			}
+		}
 	}
 
 	return results, nil
@@ -332,6 +342,14 @@ func _method(method *scango.Method, sr *scango.Result, sm sqlMap) (*Method, erro
 	err = _sql(sr.Path, sql, mr, method)
 	if err != nil {
 		return nil, err
+	}
+
+	if mr.IsAutoRet {
+		err = genRetStruct(mr)
+		if err != nil {
+			return nil, errors.New("auto-gen return "+
+				"struct for method %s failed: %v", mr.Name, err)
+		}
 	}
 
 	return mr, nil

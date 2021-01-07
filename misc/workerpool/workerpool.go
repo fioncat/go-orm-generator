@@ -1,7 +1,5 @@
 package workerpool
 
-import "github.com/fioncat/go-gendb/misc/log"
-
 type WorkFunc func(task interface{}) error
 
 type Pool interface {
@@ -104,10 +102,10 @@ type worker struct {
 
 func (w *worker) start() {
 	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("worker recover: %v", r)
-			return
-		}
+		// if r := recover(); r != nil {
+		// 	log.Errorf("worker recover: %v", r)
+		// 	return
+		// }
 	}()
 	for {
 		task, ok := <-w.taskCh

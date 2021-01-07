@@ -105,3 +105,9 @@ func Errorf(layer string, vs ...interface{}) {
 	msg := fmt.Sprintf(layer, vs...)
 	writeLog("ERR", msg)
 }
+
+func Fatal(layer string, vs ...interface{}) {
+	msg := fmt.Sprintf(layer, vs...)
+	fmt.Printf("%s: %s\n", term.Red("fatal"), msg)
+	os.Exit(1)
+}

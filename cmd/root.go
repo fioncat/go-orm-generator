@@ -14,6 +14,8 @@ var cmds = make(map[string]*cmdt.Command)
 func init() {
 	cmds["scan"] = scanCmd
 	cmds["parse"] = parseCmd
+	cmds["conn-set"] = setConnCmd
+	cmds["conn-get"] = getConnCmd
 }
 
 func getCmd(name string) *cmdt.Command {

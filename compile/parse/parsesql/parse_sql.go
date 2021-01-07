@@ -108,8 +108,20 @@ func _sql(goPath string, sql scansql.Statement, method *Method, sm *scango.Metho
 	}
 
 	// Check out whether set auto-ret
+	for _, tag := range sm.Tags {
+		for _, arg := range tag.Args {
+			if arg == "auto-ret" {
+				method.IsAutoRet = true
+				break
+			}
+		}
+	}
 
 	// If it is auto-ret, need to parse the tables
+	if method.IsAutoRet {
+		iter.Reset()
+		return _tables(iter, method, ef)
+	}
 	return nil
 }
 
@@ -292,4 +304,51 @@ func _alias(iter *iter.Iter, f *QueryField) {
 	}
 }
 
-func tables() {}
+func _tables(iter *iter.Iter, m *Method, ef *errors.ParseErrorFactory) error {
+	var tk token.Token
+	var idx int
+	for {
+		idx = iter.NextP(&tk)
+		if idx < 0 {
+			return nil
+		}
+
+		if token.SQL_FROM.Match(tk) ||
+			token.SQL_JOIN.Match(tk) {
+			// FROM or JOIN
+			var table QueryTable
+
+			idx = iter.NextP(&tk)
+			if idx < 0 {
+				return ef.EarlyEnd("INDENT")
+			}
+
+			// Must be INDENT
+			if !tk.IsIndent() {
+				return ef.MismatchS(idx, "INDENT", tk)
+			}
+
+			table.Name = tk.Get()
+
+			// check alias
+			for {
+				idx = iter.Pick(&tk)
+				if idx < 0 {
+					break
+				}
+				if token.SQL_AS.Match(tk) {
+					iter.Next(nil)
+					continue
+				}
+				if !tk.IsIndent() {
+					break
+				}
+				table.Alias = tk.Get()
+				iter.Next(nil)
+				break
+			}
+
+			m.QueryTables = append(m.QueryTables, table)
+		}
+	}
+}

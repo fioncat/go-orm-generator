@@ -30,7 +30,7 @@ func init() {
 // Do receives the result of scanning the go file, selects
 // different parsers according to different Types, uses it
 // to parse the scan results after detecting the parser,
-// and returns the code to generate an intermediate struct.
+// and returns the intermediate struct.
 //
 // It should be noted that only a few built-in parsers are
 // supported. With the iteration of the version, the supported

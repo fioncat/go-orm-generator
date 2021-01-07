@@ -258,10 +258,11 @@ func (cmd *Command) parseArgs(osargs []string) (map[string]interface{}, error) {
 	// For those flags with set=false, and has default
 	// value, we need to add default value.
 	for _, flag := range cmd.flags {
-		if flag.set {
+		if !flag.set {
 			if flag._default != nil {
 				values[flag.goName] = flag._default
 			}
+		} else {
 			flag.set = false
 		}
 	}

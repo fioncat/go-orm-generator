@@ -1,6 +1,11 @@
 package coder
 
-import "github.com/fioncat/go-gendb/misc/set"
+import (
+	"strings"
+	"unicode"
+
+	"github.com/fioncat/go-gendb/misc/set"
+)
 
 type Coder struct {
 	Source string
@@ -23,14 +28,14 @@ type Var struct {
 }
 
 type Import struct {
-	Name string
-	Path string
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 type Struct struct {
-	Comment string
-	Name    string
-	Fields  []Field
+	Comment string  `json:"comment"`
+	Name    string  `json:"name"`
+	Fields  []Field `json:"fields"`
 }
 
 func (s *Struct) Type() string {
@@ -38,10 +43,10 @@ func (s *Struct) Type() string {
 }
 
 type Field struct {
-	Comment string
-	Name    string
-	Type    string
-	Tags    []FieldTag
+	Comment string     `json:"comment"`
+	Name    string     `json:"name"`
+	Type    string     `json:"type"`
+	Tags    []FieldTag `json:"tags"`
 }
 
 func (f *Field) AddTag(name, val string) {
@@ -53,6 +58,59 @@ func (f *Field) AddTag(name, val string) {
 }
 
 type FieldTag struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+func IsSimpleType(t string) bool {
+	switch {
+	case strings.HasPrefix(t, "int"):
+		return true
+	case strings.HasPrefix(t, "uint"):
+		return true
+
+	case t == "string":
+		return true
+
+	case t == "bool":
+		return true
+
+	case strings.HasPrefix(t, "float"):
+		return true
+
+	}
+
+	return false
+}
+
+func GoName(name string) string {
+	if name == "" {
+		return ""
+	}
+	parts := strings.Split(name, "_")
+	for i := range parts {
+		parts[i] = Export(parts[i])
+	}
+
+	return strings.Join(parts, "")
+}
+
+func Export(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	if len(s) == 1 {
+		return string(unicode.ToLower(rune(s[0])))
+	}
+	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
+}
+
+func Unexport(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	if len(s) == 1 {
+		return string(unicode.ToLower(rune(s[0])))
+	}
+	return string(unicode.ToLower(rune(s[0]))) + s[1:]
 }
