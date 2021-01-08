@@ -7,10 +7,10 @@ import (
 	"sync"
 
 	"github.com/fioncat/go-gendb/build"
+	"github.com/fioncat/go-gendb/compile/mediate"
 	"github.com/fioncat/go-gendb/compile/scan/scango"
 	"github.com/fioncat/go-gendb/compile/scan/scansql"
 	"github.com/fioncat/go-gendb/compile/token"
-	"github.com/fioncat/go-gendb/generate"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/iter"
@@ -33,11 +33,14 @@ type OperResult struct {
 	// All methods of this OperResult.
 	Methods []Method `json:"methods"`
 
+	Structs []*coder.Struct `json:"structs"`
+
 	key string
 }
 
-func (r *OperResult) Type() string { return "db-oper" }
-func (r *OperResult) Key() string  { return r.key }
+func (r *OperResult) Type() string                { return "db-oper" }
+func (r *OperResult) Key() string                 { return r.key }
+func (r *OperResult) GetStructs() []*coder.Struct { return r.Structs }
 
 // Method represents a specific SQL statement call. When
 // the code is generated, a specific function is generated
@@ -96,7 +99,7 @@ type Method struct {
 
 	// RetStruct represents the structure that this method needs
 	// to generate. Only applicable to the "auto-ret" configuration.
-	RetStruct *coder.Struct `json:"-"`
+	RetStruct *coder.Struct `json:"ret_struct"`
 
 	// Imports represents the external imports used by
 	// this method.
@@ -187,9 +190,9 @@ type Parser struct {
 }
 
 // Do performs analysis.
-func (*Parser) Do(sr *scango.Result) ([]generate.Result, error) {
+func (*Parser) Do(sr *scango.Result) ([]mediate.Result, error) {
 	dir := filepath.Dir(sr.Path)
-	var results []generate.Result
+	var results []mediate.Result
 
 	// interface -> dbOper
 	for _, inter := range sr.Interfaces {
@@ -204,7 +207,7 @@ func (*Parser) Do(sr *scango.Result) ([]generate.Result, error) {
 		// auto-ret structs
 		for _, m := range oper.Methods {
 			if m.IsAutoRet && m.RetStruct != nil {
-				results = append(results, m.RetStruct)
+				oper.Structs = append(oper.Structs, m.RetStruct)
 			}
 		}
 	}
@@ -246,7 +249,7 @@ func _interface(or *OperResult, sr *scango.Result, inter *scango.Interface, dir 
 
 	// Parse methods
 	wp = workerpool.New(len(inter.Methods),
-		build.N_WORKERS, parseMethodWorker(or, sr, sqlM))
+		build.N_WORKERS, parseMethodWorker(inter.Name, or, sr, sqlM))
 	wp.Start()
 	for _, m := range inter.Methods {
 		m := m
@@ -291,10 +294,10 @@ func scanSqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
 	}
 }
 
-func parseMethodWorker(or *OperResult, sr *scango.Result, sqlM sqlMap) workerpool.WorkFunc {
+func parseMethodWorker(interName string, or *OperResult, sr *scango.Result, sqlM sqlMap) workerpool.WorkFunc {
 	return func(task interface{}) error {
 		method := task.(*scango.Method)
-		mr, err := _method(method, sr, sqlM)
+		mr, err := _method(interName, method, sr, sqlM)
 		if err != nil {
 			return err
 		}
@@ -306,7 +309,7 @@ func parseMethodWorker(or *OperResult, sr *scango.Result, sqlM sqlMap) workerpoo
 }
 
 // parse go interfaces' method into Method struct.
-func _method(method *scango.Method, sr *scango.Result, sm sqlMap) (*Method, error) {
+func _method(interName string, method *scango.Method, sr *scango.Result, sm sqlMap) (*Method, error) {
 	iter := iter.New(method.Tokens)
 	mr := new(Method)
 	err := _goMethod(iter, sr.Path, method.Line, mr)
@@ -345,7 +348,7 @@ func _method(method *scango.Method, sr *scango.Result, sm sqlMap) (*Method, erro
 	}
 
 	if mr.IsAutoRet {
-		err = genRetStruct(mr)
+		err = genRetStruct(interName, mr)
 		if err != nil {
 			return nil, errors.New("auto-gen return "+
 				"struct for method %s failed: %v", mr.Name, err)

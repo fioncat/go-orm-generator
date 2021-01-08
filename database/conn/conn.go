@@ -29,7 +29,7 @@ type Config struct {
 }
 
 // key prefix store in the disk.
-const keyPrefix = "conn_"
+const keyPrefix = "conn."
 
 // Set save the database connection configuration "cfg"
 // to the local disk. The key is used to retrieve this

@@ -73,6 +73,9 @@ func (t *mysqlTable) setComment(db *sql.DB, dbName string) error {
 		if err != nil {
 			return err
 		}
+		if strings.Contains(t.Comment, "\n") {
+			t.Comment = strings.ReplaceAll(t.Comment, "\n", " ")
+		}
 	}
 	return nil
 }
@@ -94,6 +97,9 @@ func (t *mysqlTable) setFieldsComment(db *sql.DB, dbName string) error {
 		err = rows.Scan(&name, &comment)
 		if err != nil {
 			return err
+		}
+		if strings.Contains(comment, "\n") {
+			comment = strings.ReplaceAll(comment, "\n", " ")
 		}
 		field := t.fields[name]
 		if field != nil {

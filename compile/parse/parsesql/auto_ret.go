@@ -3,15 +3,16 @@ package parsesql
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
-var tableCache = make(map[string]rdb.Table)
+var tableCache sync.Map
 
-func genRetStruct(m *Method) error {
+func genRetStruct(interName string, m *Method) error {
 	if len(m.QueryTables) == 0 {
 		return fmt.Errorf(`can not find table, ` +
 			`please check your sql statement`)
@@ -38,16 +39,24 @@ func genRetStruct(m *Method) error {
 
 	goStruct := new(coder.Struct)
 	goStruct.Name = retName
-	goStruct.Comment = fmt.Sprintf("%s is an auto-generated "+
-		"return type for method %s", retName, m.Name)
+	goStruct.Comment = fmt.Sprintf("is an auto-generated "+
+		"return type for %s.%s", interName, m.Name)
 	goStruct.Fields = make([]coder.Field, len(m.QueryFields))
 
 	var tableName string
 	var ok bool
 	for idx, field := range m.QueryFields {
-		// call database to get table desc.
-		if tableName, ok = nameMap[field.Table]; !ok {
-			tableName = aliasMap[field.Table]
+		if field.Table == "" {
+			// use default table
+			for name := range nameMap {
+				tableName = name
+				break
+			}
+		} else {
+			// call database to get table desc.
+			if tableName, ok = nameMap[field.Table]; !ok {
+				tableName = aliasMap[field.Table]
+			}
 		}
 		if tableName == "" {
 			return fmt.Errorf(`can not find `+
@@ -55,14 +64,16 @@ func genRetStruct(m *Method) error {
 				field.Table)
 		}
 
-		table := tableCache[tableName]
-		if table == nil {
+		var table rdb.Table
+		v, ok := tableCache.Load(tableName)
+		if !ok {
 			table, err = rdb.Get().Desc(tableName)
 			if err != nil {
 				return err
 			}
-
-			tableCache[tableName] = table
+			tableCache.Store(tableName, table)
+		} else {
+			table = v.(rdb.Table)
 		}
 
 		descField := table.Field(field.Field)

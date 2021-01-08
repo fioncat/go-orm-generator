@@ -54,7 +54,7 @@ func (s *Session) Desc(tableName string) (Table, error) {
 	}
 
 	// try to fetch data from disk.
-	key := fmt.Sprintf("cache_table_%s_%s_%s", s.cfg.Key,
+	key := fmt.Sprintf("cache.table.%s.%s.%s", s.cfg.Key,
 		s.cfg.Database, tableName)
 	table := getCacheTable(key)
 	if table != nil {

@@ -3,9 +3,11 @@ package parse
 import (
 	"fmt"
 
+	"github.com/fioncat/go-gendb/build"
+	"github.com/fioncat/go-gendb/compile/mediate"
 	"github.com/fioncat/go-gendb/compile/parse/parsesql"
 	"github.com/fioncat/go-gendb/compile/scan/scango"
-	"github.com/fioncat/go-gendb/generate"
+	"github.com/fioncat/go-gendb/generate/coder"
 )
 
 // Parser is used to receive the scanned go file results,
@@ -18,7 +20,7 @@ type Parser interface {
 	// code.
 	// Different go file types have different specific
 	// implementations.
-	Do(r *scango.Result) ([]generate.Result, error)
+	Do(r *scango.Result) ([]mediate.Result, error)
 }
 
 var parsers = make(map[string]Parser)
@@ -26,6 +28,14 @@ var parsers = make(map[string]Parser)
 func init() {
 	parsers["sql"] = &parsesql.Parser{}
 }
+
+type StructResult struct {
+	Structs []*coder.Struct
+}
+
+func (*StructResult) Type() string                   { return "struct" }
+func (*StructResult) Key() string                    { return "Struct" }
+func (sr *StructResult) GetStructs() []*coder.Struct { return sr.Structs }
 
 // Do receives the result of scanning the go file, selects
 // different parsers according to different Types, uses it
@@ -41,11 +51,50 @@ func init() {
 // an error will be returned. The parser will return an
 // error if an IO error or syntax error occurs during the
 // parsing process.
-func Do(scanResult *scango.Result) ([]generate.Result, error) {
+func Do(scanResult *scango.Result) ([]mediate.Result, error) {
 	parser := parsers[scanResult.Type]
 	if parser == nil {
 		return nil, fmt.Errorf(`unknown parser "%s"`, scanResult.Type)
 	}
 
-	return parser.Do(scanResult)
+	results, err := parser.Do(scanResult)
+	if err != nil {
+		return nil, err
+	}
+	if build.DEBUG {
+		return results, nil
+	}
+
+	structMap := make(map[string][]*coder.Struct, len(results))
+	for _, result := range results {
+		structs := result.GetStructs()
+		for _, s := range structs {
+			structMap[s.Name] = append(structMap[s.Name], s)
+		}
+	}
+
+	sr := new(StructResult)
+	for _, ss := range structMap {
+		if len(ss) == 0 {
+			continue
+		}
+		s := ss[0]
+		if len(ss) == 1 {
+			sr.Structs = append(sr.Structs, s)
+			continue
+		}
+
+		ss = ss[1:]
+		for _, os := range ss {
+			s.Merge(os)
+		}
+
+		sr.Structs = append(sr.Structs, s)
+	}
+
+	if len(sr.Structs) > 0 {
+		results = append(results, sr)
+	}
+
+	return results, nil
 }

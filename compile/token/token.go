@@ -162,8 +162,9 @@ var (
 	BREAK = Key("\n")
 	TABLE = Key("\t")
 
-	QUO  = Key(`"`)
-	SQUO = Key(`'`)
+	QUO   = Key(`"`)
+	SQUO  = Key(`'`)
+	PAUSE = Key("`")
 
 	LPAREN = Key("(")
 	RPAREN = Key(")")

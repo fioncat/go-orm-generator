@@ -16,6 +16,8 @@ func init() {
 	cmds["parse"] = parseCmd
 	cmds["conn-set"] = setConnCmd
 	cmds["conn-get"] = getConnCmd
+	cmds["gen"] = genCmd
+	cmds["batch"] = batchCmd
 }
 
 func getCmd(name string) *cmdt.Command {

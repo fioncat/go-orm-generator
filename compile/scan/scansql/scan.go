@@ -204,14 +204,17 @@ func sql(path string, lineNum int, s string) ([]token.Token, error) {
 
 		case token.SQUO.Rune():
 			fallthrough
+		case token.PAUSE.Rune():
+			fallthrough
 		case token.QUO.Rune():
 			bucket.Indent()
 			var quotes []rune
 			var subch rune
 			for iter.Next(&subch) {
 				if token.SQUO.EqRune(subch) ||
-					token.QUO.EqRune(subch) {
-					// next ' "
+					token.QUO.EqRune(subch) ||
+					token.PAUSE.EqRune(subch) {
+					// next ' " `
 					break
 				}
 				quotes = append(quotes, subch)

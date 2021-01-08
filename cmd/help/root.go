@@ -24,6 +24,6 @@ Connection Commands:
 
 Debug Commands:
     scan    Perform lexical analysis on the file.
-    pase    Perform syntax analysis on the code.
+    parse   Perform syntax analysis on the code.
 
 Use "go-gendb help <command>" for more information about a command.`
