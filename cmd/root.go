@@ -18,6 +18,9 @@ func init() {
 	cmds["conn-get"] = getConnCmd
 	cmds["gen"] = genCmd
 	cmds["batch"] = batchCmd
+	cmds["cache-size"] = cacheSizeCmd
+	cmds["clean-cache"] = cleanCacheCmd
+	cmds["clean"] = cleanCmd
 }
 
 func getCmd(name string) *cmdt.Command {
