@@ -10,6 +10,8 @@ import (
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
+// implementation of sql generator
+
 type Conf struct {
 	RunnerPath string `json:"runner_path"`
 	DbUse      string `json:"db_use"`

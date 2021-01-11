@@ -12,39 +12,59 @@ import (
 	"github.com/fioncat/go-gendb/misc/set"
 )
 
+// Coder is used to generate code line by line. It
+// includes the basic structure of Go code.
 type Coder struct {
+	// Source is the original file path, uses to
+	// generate comments.
 	Source string
-
+	// Pkg is the package definition.
 	Pkg string
-
+	// Imports is all import definition
 	Imports []Import
-	Vars    []Var
-	Consts  []Var
+	// Vars is all global variable(s) definition
+	Vars []Var
+	// Consts is all global const(s) definition
+	Consts []Var
+	// Structs is all struct(s) definition
 	Structs []Struct
-
+	// Contents is code body
 	Contents []string
 
 	importsSet *set.Set
 }
 
+// Var represents the global variable definition.
 type Var struct {
-	Name  string
+	// Name of the variable
+	Name string
+	// Value of the variable
 	Value string
 }
 
+// Import represents the import definition
 type Import struct {
+	// Name can be empty
 	Name string `json:"name"`
+	// Path of the import.
 	Path string `json:"path"`
 }
 
+// Struct represents the struct definition
 type Struct struct {
-	Comment string  `json:"comment"`
-	Name    string  `json:"name"`
-	Fields  []Field `json:"fields"`
+	// Comment of the struct
+	Comment string `json:"comment"`
+	// Name of the struct
+	Name string `json:"name"`
+	// All fields
+	Fields []Field `json:"fields"`
 
 	fm map[string]struct{}
 }
 
+// Merge merges the two structures and traverses the "os"
+// field. If the field name does not exist in the current
+// structure, insert the field into the current structure.
 func (s *Struct) Merge(os *Struct) {
 	if s.Name != os.Name {
 		return
@@ -65,6 +85,7 @@ func (s *Struct) Merge(os *Struct) {
 	}
 }
 
+// Field represents the field in the structure.
 type Field struct {
 	Comment string     `json:"comment"`
 	Name    string     `json:"name"`
@@ -72,6 +93,7 @@ type Field struct {
 	Tags    []FieldTag `json:"tags"`
 }
 
+// AddTag add a tag for the field.
 func (f *Field) AddTag(name, val string) {
 	tag := FieldTag{
 		Name:  name,
@@ -80,6 +102,7 @@ func (f *Field) AddTag(name, val string) {
 	f.Tags = append(f.Tags, tag)
 }
 
+// FieldTag represents the tag of the field in the structure.
 type FieldTag struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
@@ -99,6 +122,7 @@ func newVar(name string, vs ...interface{}) Var {
 	return v
 }
 
+// AddStruct adds a structure to the code.
 func (c *Coder) AddStruct(s Struct) {
 	c.Structs = append(c.Structs, s)
 	for _, f := range s.Fields {
@@ -108,6 +132,7 @@ func (c *Coder) AddStruct(s Struct) {
 	}
 }
 
+// AddImport adds an import statement to the code.
 func (c *Coder) AddImport(name, path string) {
 	if c.importsSet == nil {
 		c.importsSet = set.New()
@@ -124,14 +149,17 @@ func (c *Coder) AddImport(name, path string) {
 	c.Imports = append(c.Imports, imp)
 }
 
+// AddVar adds a global variable to the code.
 func (c *Coder) AddVar(name string, vs ...interface{}) {
 	c.Vars = append(c.Vars, newVar(name, vs...))
 }
 
+// AddConst adds a global constant to the code.
 func (c *Coder) AddConst(name string, vs ...interface{}) {
 	c.Consts = append(c.Consts, newVar(name, vs...))
 }
 
+// P adds a line to the code body.
 func (c *Coder) P(n int, vs ...interface{}) {
 	code := comb(vs...)
 	prefix := strings.Repeat("\t", n)
@@ -139,10 +167,12 @@ func (c *Coder) P(n int, vs ...interface{}) {
 	c.Contents = append(c.Contents, code)
 }
 
+// Empty appends an empty line to the code body.
 func (c *Coder) Empty() {
 	c.Contents = append(c.Contents, "")
 }
 
+// Write writes the code to a file on disk
 func (c *Coder) Write(path string) error {
 	lines := make([]string, 0, 5+len(c.Contents))
 	lines = append(lines, c.genHeader()...)
@@ -260,11 +290,13 @@ func comb(vs ...interface{}) string {
 	return strings.Join(strs, "")
 }
 
+// Quote the string in double quotes
 func Quote(ss ...string) string {
 	s := strings.Join(ss, "")
 	return fmt.Sprintf(`"%s"`, s)
 }
 
+// IsSimpleType determines whether the go type is a basic type.
 func IsSimpleType(t string) bool {
 	switch {
 	case strings.HasPrefix(t, "int"):
@@ -286,6 +318,8 @@ func IsSimpleType(t string) bool {
 	return false
 }
 
+// GoName converts an underscore name into a camel case
+// name with an initial capital letter.
 func GoName(name string) string {
 	if name == "" {
 		return ""
@@ -298,6 +332,7 @@ func GoName(name string) string {
 	return strings.Join(parts, "")
 }
 
+// Export capitalizes the first letter of the name.
 func Export(s string) string {
 	if len(s) == 0 {
 		return ""
@@ -308,6 +343,7 @@ func Export(s string) string {
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
 }
 
+// Unexport lowercases the first letter of the name.
 func Unexport(s string) string {
 	if len(s) == 0 {
 		return ""
@@ -318,6 +354,7 @@ func Unexport(s string) string {
 	return string(unicode.ToLower(rune(s[0]))) + s[1:]
 }
 
+// StrAlign returns the string with a fixed length left aligned.
 func StrAlign(s string, fix int) string {
 	format := "%-" + strconv.Itoa(fix) + "s"
 	return fmt.Sprintf(format, s)

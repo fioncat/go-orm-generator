@@ -76,10 +76,6 @@ func humanateBytes(s uint64, base float64, sizes []string) string {
 }
 
 // Bytes produces a human readable representation of an SI size.
-//
-// See also: ParseBytes.
-//
-// Bytes(82854982) -> 83 MB
 func Bytes(s uint64) string {
 	sizes := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}
 	return humanateBytes(s, 1000, sizes)

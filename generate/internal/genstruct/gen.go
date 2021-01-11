@@ -7,6 +7,8 @@ import (
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
+// implementation of struct generator
+
 type Generator struct {
 }
 
