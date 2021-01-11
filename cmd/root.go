@@ -21,6 +21,7 @@ func init() {
 	cmds["cache-size"] = cacheSizeCmd
 	cmds["clean-cache"] = cleanCacheCmd
 	cmds["clean"] = cleanCmd
+	cmds["check"] = checkCmd
 }
 
 func getCmd(name string) *cmdt.Command {

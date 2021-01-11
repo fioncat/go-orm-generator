@@ -59,6 +59,29 @@ func (t *mysqlTable) GetComment() string      { return t.Comment }
 func (t *mysqlTable) Field(name string) Field { return t.fields[name] }
 func (t *mysqlTable) FieldNames() []string    { return t.fieldNames }
 
+type mysqlCheckField struct {
+	Id           sql.NullInt32
+	SelectType   sql.NullString
+	Table        sql.NullString
+	Partotions   sql.NullString
+	Type         sql.NullString
+	PossibleKeys sql.NullString
+	Key          sql.NullString
+	KeyLen       sql.NullInt32
+	Ref          sql.NullString
+	Rows         sql.NullInt64
+	Filtered     sql.NullString
+	Extra        sql.NullString
+}
+
+type mysqlCheckResult struct {
+	err   error
+	warns []string
+}
+
+func (r *mysqlCheckResult) GetErr() error      { return r.err }
+func (r *mysqlCheckResult) GetWarns() []string { return r.warns }
+
 // Set comments to the table, which requires separate
 // execution of additional SQL statements.
 func (t *mysqlTable) setComment(db *sql.DB, dbName string) error {
@@ -168,8 +191,36 @@ func (o *mysqlOper) Desc(db *sql.DB, tableName string) (Table, error) {
 }
 
 func (*mysqlOper) Check(db *sql.DB, sql string, prepares []interface{}) (CheckResult, error) {
-	// TODO: implement
-	return nil, nil
+	sql = "DESC " + sql
+	result := new(mysqlCheckResult)
+	rows, err := db.Query(sql, prepares...)
+	if err != nil {
+		result.err = err
+		return result, nil
+	}
+	defer rows.Close()
+
+	var fields []*mysqlCheckField
+	for rows.Next() {
+		r := new(mysqlCheckField)
+		err = rows.Scan(&r.Id, &r.SelectType, &r.Table, &r.Partotions,
+			&r.Type, &r.PossibleKeys, &r.Key, &r.KeyLen, &r.Ref,
+			&r.Rows, &r.Filtered, &r.Extra)
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, r)
+	}
+
+	for _, f := range fields {
+		if f.Type.String == "ALL" {
+			warn := fmt.Sprintf(`full-table-scan for table "%s", rows=%d`,
+				f.Table.String, f.Rows.Int64)
+			result.warns = append(result.warns, warn)
+		}
+	}
+
+	return result, nil
 }
 
 func (*mysqlOper) ConvertType(sqlType string) string {
