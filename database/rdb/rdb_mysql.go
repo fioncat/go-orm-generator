@@ -188,7 +188,7 @@ func (*mysqlOper) ConvertType(sqlType string) string {
 	case strings.HasPrefix(sqlType, "SMALLINT"):
 		fallthrough
 	case strings.HasPrefix(sqlType, "TINYINT"):
-		return "int8"
+		return "int32"
 	case strings.HasPrefix(sqlType, "FLOAT"):
 		return "float32"
 	case strings.HasPrefix(sqlType, "DOUBLE"):
@@ -196,9 +196,9 @@ func (*mysqlOper) ConvertType(sqlType string) string {
 	case strings.HasPrefix(sqlType, "DECIMAL"):
 		return "float64"
 	case strings.HasPrefix(sqlType, "DATE"):
-		return "time.Time"
+		return "string"
 	case strings.HasPrefix(sqlType, "Time"):
-		return "time.Time"
+		return "string"
 	}
 	return "string"
 }

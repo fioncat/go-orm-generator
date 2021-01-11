@@ -1,5 +1,11 @@
 package workerpool
 
+import (
+	"sync"
+
+	"github.com/fioncat/go-gendb/misc/log"
+)
+
 type WorkFunc func(task interface{}) error
 
 type Pool interface {
@@ -20,6 +26,9 @@ type pool struct {
 	stopCh chan error
 
 	workFunc WorkFunc
+
+	isClosed bool
+	closeMu  sync.RWMutex
 }
 
 type single struct {
@@ -53,6 +62,7 @@ func (p *pool) Start() {
 			doneCh: p.doneCh,
 			errCh:  p.errCh,
 			work:   p.workFunc,
+			pool:   p,
 		}
 		go w.start()
 	}
@@ -60,12 +70,21 @@ func (p *pool) Start() {
 }
 
 func (p *pool) Do(task interface{}) {
+	p.closeMu.RLock()
+	defer p.closeMu.RUnlock()
+	if p.isClosed {
+		// If the pool is closed,
+		return
+	}
 	p.taskCh <- task
 }
 
 func (p *pool) listen() {
 	cnt := 0
 	for {
+		if p.isClosed {
+			return
+		}
 		select {
 		case done := <-p.doneCh:
 			cnt += done
@@ -82,10 +101,15 @@ func (p *pool) listen() {
 }
 
 func (p *pool) Wait() error {
-	defer close(p.errCh)
-	defer close(p.doneCh)
-	defer close(p.taskCh)
-	defer close(p.stopCh)
+	defer func() {
+		p.closeMu.Lock()
+		close(p.errCh)
+		close(p.stopCh)
+		close(p.doneCh)
+		close(p.taskCh)
+		p.isClosed = true
+		p.closeMu.Unlock()
+	}()
 	for {
 		err := <-p.stopCh
 		return err
@@ -98,25 +122,43 @@ type worker struct {
 	taskCh chan interface{}
 	doneCh chan int
 	errCh  chan error
+
+	pool *pool
 }
 
 func (w *worker) start() {
-	defer func() {
-		// if r := recover(); r != nil {
-		// 	log.Errorf("worker recover: %v", r)
-		// 	return
-		// }
-	}()
 	for {
 		task, ok := <-w.taskCh
 		if !ok || task == nil {
 			return
 		}
+		// If the pool is already closed, stop the worker.
+		if w.pool.isClosed {
+			return
+		}
 		err := w.work(task)
 		if err != nil {
+			// Work with error, try to notify pool.
+			// If the pool is already closed, log
+			// this error and return.
+			w.pool.closeMu.RLock()
+			defer w.pool.closeMu.RUnlock()
+			if w.pool.isClosed {
+				log.Errorf("unhandle error from worker: %v", err)
+				return
+			}
+			// notify error
 			w.errCh <- err
 			return
 		}
+		w.pool.closeMu.RLock()
+		if w.pool.isClosed {
+			// Work done, but the pool is closed,
+			// stop the worker directly.
+			w.pool.closeMu.RUnlock()
+			return
+		}
 		w.doneCh <- 1
+		w.pool.closeMu.RUnlock()
 	}
 }
