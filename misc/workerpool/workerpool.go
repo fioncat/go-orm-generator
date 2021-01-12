@@ -31,18 +31,39 @@ type pool struct {
 	closeMu  sync.RWMutex
 }
 
-type single struct {
+type oneTask struct {
 	workFunc WorkFunc
 	task     interface{}
 }
 
-func (s *single) Start()              {}
-func (s *single) Do(task interface{}) { s.task = task }
-func (s *single) Wait() error         { return s.workFunc(s.task) }
+func (s *oneTask) Start()              {}
+func (s *oneTask) Do(task interface{}) { s.task = task }
+func (s *oneTask) Wait() error         { return s.workFunc(s.task) }
+
+type oneWorker struct {
+	workFunc WorkFunc
+	err      error
+}
+
+func (s *oneWorker) Start() {}
+
+func (s *oneWorker) Do(task interface{}) {
+	if s.err != nil {
+		return
+	}
+	s.err = s.workFunc(task)
+}
+
+func (s *oneWorker) Wait() error {
+	return s.err
+}
 
 func New(nTask, nWorker int, workFunc WorkFunc) Pool {
 	if nTask == 1 {
-		return &single{workFunc: workFunc}
+		return &oneTask{workFunc: workFunc}
+	}
+	if nWorker == 1 {
+		return &oneWorker{workFunc: workFunc}
 	}
 	return &pool{
 		taskCh:   make(chan interface{}, nWorker),

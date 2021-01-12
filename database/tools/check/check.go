@@ -21,6 +21,7 @@ import (
 	"github.com/fioncat/go-gendb/misc/workerpool"
 )
 
+// Arg stores the command line parameters of check.
 type Arg struct {
 	Type      string `flag:"type" default:"mysql"`
 	Batch     bool   `flag:"batch"`
@@ -32,6 +33,7 @@ type Arg struct {
 	Path string `arg:"path"`
 }
 
+// sql check task
 type checkTask struct {
 	path     string
 	name     string
@@ -39,14 +41,18 @@ type checkTask struct {
 	prepares []interface{}
 }
 
+// sql check result
 type checkResult struct {
 	path   string
 	name   string
 	result rdb.CheckResult
 }
 
+// user-pass-in params.
 type params map[string]interface{}
 
+// Scan the provided sql file, and construct an inspection
+// task based on the parameters passed in by the user.
 func buildTasks(path string, ms params, filter *set.Set) ([]*checkTask, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -100,6 +106,9 @@ func buildTasks(path string, ms params, filter *set.Set) ([]*checkTask, error) {
 	return tasks, nil
 }
 
+// Get the specific value from the parameters provided by
+// the user. If it is not provided, it will be empty by
+// default, but it will warn in the log.
 func getValues(t, sqlName string, names []string, ms params) []interface{} {
 	vals := make([]interface{}, len(names))
 	for idx, name := range names {
@@ -115,6 +124,8 @@ func getValues(t, sqlName string, names []string, ms params) []interface{} {
 	return vals
 }
 
+// Do executes SQL statement check based on the passed
+// parameters and directly outputs the check result.
 func Do(arg *Arg) error {
 	if arg.Log {
 		log.Init(true, "")
