@@ -124,6 +124,9 @@ func newVar(name string, vs ...interface{}) Var {
 
 // AddStruct adds a structure to the code.
 func (c *Coder) AddStruct(s Struct) {
+	sort.Slice(s.Fields, func(i, j int) bool {
+		return s.Fields[i].Name < s.Fields[j].Name
+	})
 	c.Structs = append(c.Structs, s)
 	for _, f := range s.Fields {
 		if f.Type == "time.Time" {

@@ -3,6 +3,7 @@ package gensql
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/fioncat/go-gendb/compile/mediate"
@@ -60,6 +61,10 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 
 	c.P(0, "var ", oper.Name, "Oper ", oper.Name, " = &", structName, "{}")
 	c.Empty()
+
+	sort.Slice(oper.Methods, func(i, j int) bool {
+		return oper.Methods[i].Name < oper.Methods[j].Name
+	})
 
 	for _, m := range oper.Methods {
 		constName := fmt.Sprintf("sql_%s_%s", oper.Name, m.Name)
