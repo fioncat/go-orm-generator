@@ -91,6 +91,7 @@ func (iter *Iter) Reset() {
 	iter.idx = 0
 }
 
+// Previous returns the previous element of the current element.
 func (iter *Iter) Previous(v interface{}) int {
 	tar := reflect.ValueOf(v)
 	if tar.Kind() != reflect.Ptr {

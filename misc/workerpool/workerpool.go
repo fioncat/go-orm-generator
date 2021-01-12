@@ -6,14 +6,35 @@ import (
 	"github.com/fioncat/go-gendb/misc/log"
 )
 
+// WorkFunc represents the specific function type that
+// the worker runs.
 type WorkFunc func(task interface{}) error
 
+// Pool represents a pool that stores a fixed number of
+// workers. It can have multiple implementations.
+// Tasks can be initiated to the pool, and the tasks will
+// be assigned to a worker to run.
 type Pool interface {
+	// Start opens the pool. Before calling Start, there
+	// is no worker in the pool and no task can be received.
+	// So must call this method before calling Do.
 	Start()
+
+	// Do sends a task to the pool. The pool should schedule
+	// it to be executed by a worker. In the case of concurrency,
+	// Do theoretically returns immediately.
 	Do(task interface{})
+
+	// Wait blocks until all sent tasks are executed, and
+	// returns to errors generated during execution. Wait
+	// should clean up the resources occupied by the pool.
 	Wait() error
 }
 
+// pool is the implementation of the concurrent version of
+// the Pool interface. Its multiple workers will asynchronously
+// preempt a channel to obtain tasks. Do will send tasks
+// directly to this channel for workers to preempt.
 type pool struct {
 	taskCh chan interface{}
 
@@ -31,6 +52,9 @@ type pool struct {
 	closeMu  sync.RWMutex
 }
 
+// oneTask is an implementation of the Pool interface
+// with only one task. In fact, it simply executes
+// workFunc once.
 type oneTask struct {
 	workFunc WorkFunc
 	task     interface{}
@@ -40,6 +64,9 @@ func (s *oneTask) Start()              {}
 func (s *oneTask) Do(task interface{}) { s.task = task }
 func (s *oneTask) Wait() error         { return s.workFunc(s.task) }
 
+// oneWorker is a Pool interface implementation with
+// only one worker but multiple tasks. It will actually
+// perform tasks sequentially.
 type oneWorker struct {
 	workFunc WorkFunc
 	err      error
@@ -48,6 +75,7 @@ type oneWorker struct {
 func (s *oneWorker) Start() {}
 
 func (s *oneWorker) Do(task interface{}) {
+	// skip if any error exists.
 	if s.err != nil {
 		return
 	}
@@ -58,6 +86,9 @@ func (s *oneWorker) Wait() error {
 	return s.err
 }
 
+// New creates a new Pool. The specific pool implementation
+// structure is determined internally and externally does
+// not need to be concerned.
 func New(nTask, nWorker int, workFunc WorkFunc) Pool {
 	if nTask == 1 {
 		return &oneTask{workFunc: workFunc}
@@ -137,6 +168,8 @@ func (p *pool) Wait() error {
 	}
 }
 
+// worker that execute workFunc concurrently, will
+// get the tasks to be executed from taskCh.
 type worker struct {
 	work WorkFunc
 
