@@ -1,51 +1,31 @@
 package store
 
 import (
-	"time"
-
-	"github.com/fioncat/go-gendb/misc/log"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
-var cacheTTL = time.Hour
+func WalkCache(prefix string, walkFunc func(path string, info os.FileInfo) error) error {
+	err := filepath.Walk(baseHome(), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		filename := filepath.Base(path)
+		if !strings.HasPrefix(filename, "cache.") {
+			return nil
+		}
 
-var enableCache bool
+		if prefix != "" {
+			if !strings.HasPrefix(filename, "cache."+prefix) {
+				return nil
+			}
+		}
+		return walkFunc(path, info)
+	})
 
-func SetCacheTTL(ttl time.Duration) {
-	if ttl == 0 {
-		log.Errorf("can not set cache-ttl to zero.")
-		return
-	}
-	cacheTTL = ttl
-}
-
-func EnableCache() {
-	enableCache = true
-}
-
-func SaveCache(base, key string, v interface{}) error {
-	if !enableCache {
-		return nil
-	}
-	err := Save("cache_"+base, key, v, cacheTTL)
-	if err != nil {
-		return err
-	}
-	log.Infof("save cache base=%s key=%s ttl=%s",
-		base, key, cacheTTL.String())
-	return nil
-}
-
-func GetCache(base, key string, v interface{}) bool {
-	if !enableCache {
-		return false
-	}
-	found, err := Get("cache_"+base, key, v)
-	if !found {
-		return false
-	}
-	if err != nil {
-		log.Errorf("read cache %s/%s failed: %v", base, key, err)
-		return false
-	}
-	return true
+	return err
 }

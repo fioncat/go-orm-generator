@@ -19,20 +19,32 @@ var (
 	baseOnce sync.Once
 )
 
+// home/basePath
 func baseHome() string {
 	baseOnce.Do(func() {
 		home, err := home()
 		if err != nil {
-			log.Errorf("fetch home dir failed: %v,"+
-				" we will save file in current directoy.",
-				err)
-			return
+			log.Fatal("read home directory failed: %v", err)
 		}
 		basePath = filepath.Join(home, ".gogendb")
+
+		stat, err := os.Stat(basePath)
+		if err != nil {
+			err = os.MkdirAll(basePath, os.ModePerm)
+			if err != nil {
+				log.Fatal("mkdir for basepath failed: %v", err)
+			}
+			return
+		}
+		if !stat.IsDir() {
+			log.Fatal(`basepath "%s" is a file, conflict `+
+				`with storage requirements`, basePath)
+		}
 	})
 	return basePath
 }
 
+// home on any os(windows, unix, linux)
 func home() (string, error) {
 	user, err := user.Current()
 	if err == nil {
@@ -46,6 +58,7 @@ func home() (string, error) {
 	return homeUnix()
 }
 
+// home on unix(linux)
 func homeUnix() (string, error) {
 	if home := os.Getenv("HOME"); home != "" {
 		return home, nil
@@ -66,6 +79,7 @@ func homeUnix() (string, error) {
 	return result, nil
 }
 
+// home on windows
 func homeWindows() (string, error) {
 	drive := os.Getenv("HOMEDRIVE")
 	path := os.Getenv("HOMEPATH")

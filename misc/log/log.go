@@ -21,6 +21,11 @@ const (
 	timeFmt = "2006-01-02 15:04:05"
 )
 
+// IsEnable returns whether the log is enabled
+func IsEnable() bool {
+	return logEnable
+}
+
 func appendLogFile(msg string) error {
 	file, err := os.OpenFile(logPath,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -33,11 +38,16 @@ func appendLogFile(msg string) error {
 	return err
 }
 
+// Init initialization log.
+// By default, the log will be output to standard output,
+// if path is not empty, it will be output to the file
+// specified by path.
 func Init(enable bool, path string) {
 	logEnable = enable
 	logPath = path
 }
 
+// returns level string(with color)
 func getLevel(level string) string {
 	if logPath != "" {
 		return level
@@ -74,6 +84,7 @@ func joinI(vals ...interface{}) string {
 	return strings.Join(strs, " ")
 }
 
+// Info output INFO level log
 func Info(ss ...interface{}) {
 	if !logEnable {
 		return
@@ -82,6 +93,7 @@ func Info(ss ...interface{}) {
 	writeLog("INF", msg)
 }
 
+// Infof output INFO level log
 func Infof(layer string, vs ...interface{}) {
 	if !logEnable {
 		return
@@ -90,6 +102,7 @@ func Infof(layer string, vs ...interface{}) {
 	writeLog("INF", msg)
 }
 
+// Error output ERR level log
 func Error(ss ...interface{}) {
 	if !logEnable {
 		return
@@ -98,10 +111,18 @@ func Error(ss ...interface{}) {
 	writeLog("ERR", msg)
 }
 
+// Errorf output ERR level log
 func Errorf(layer string, vs ...interface{}) {
 	if !logEnable {
 		return
 	}
 	msg := fmt.Sprintf(layer, vs...)
 	writeLog("ERR", msg)
+}
+
+// Fatal output log and exit program with 1.
+func Fatal(layer string, vs ...interface{}) {
+	msg := fmt.Sprintf(layer, vs...)
+	fmt.Printf("%s: %s\n", term.Red("fatal"), msg)
+	os.Exit(1)
 }
