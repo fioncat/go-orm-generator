@@ -200,8 +200,10 @@ type DynamicPart struct {
 
 	SQL SQL `json:"sql"`
 
+	// if condition
 	IfCond string `json:"if_cond"`
 
+	// for loop
 	ForEle   string `json:"for_ele"`
 	ForSlice string `json:"for_slice"`
 	ForJoin  string `json:"for_join"`
