@@ -53,6 +53,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo 'Begin to execute samples...'
-go-gendb gen --cache --log --conn local samples/user/oper.go
+go-gendb gen --cache --log --conn test_samples samples/quickstart/oper.go
+go-gendb gen --log samples/dynamic/user.go
 
 
