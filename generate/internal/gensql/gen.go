@@ -67,15 +67,55 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 	})
 
 	for _, m := range oper.Methods {
-		constName := fmt.Sprintf("sql_%s_%s", oper.Name, m.Name)
-		c.AddConst(constName, coder.Quote(m.SQL.Contant))
+		var constName string
+		var (
+			pre = "nil"
+			rep = "nil"
 
-		runnerName := fmt.Sprintf("runner_%s_%s", oper.Name, m.Name)
-		c.AddVar(runnerName, "runner.New(", constName, ")")
+			hasPre = false
+			hasRep = false
+		)
+		if m.IsDynamic {
+			constName = "_sql"
+			for idx, part := range m.DynamicParts {
+				if part.ForJoin != "" {
+					part.SQL.Contant += part.ForJoin
+				}
+				c.AddConst(fmt.Sprintf("sql_%s_%s_%d",
+					oper.Name, m.Name, idx), coder.Quote(part.SQL.Contant))
+				if len(part.SQL.Prepares) > 0 {
+					hasPre = true
+				}
+				if len(part.SQL.Replaces) > 0 {
+					hasRep = true
+				}
+			}
+
+			if hasPre {
+				pre = "pvs"
+			}
+			if hasRep {
+				rep = "rvs"
+			}
+		} else {
+			constName = fmt.Sprintf("sql_%s_%s", oper.Name, m.Name)
+			c.AddConst(constName, coder.Quote(m.SQL.Contant))
+			if len(m.SQL.Replaces) > 0 {
+				rep = strings.Join(m.SQL.Replaces, ", ")
+				rep = fmt.Sprintf("[]interface{}{%s}", rep)
+			}
+			if len(m.SQL.Prepares) > 0 {
+				pre = strings.Join(m.SQL.Prepares, ", ")
+				pre = fmt.Sprintf("[]interface{}{%s}", pre)
+			}
+		}
 
 		c.P(0, "// ", m.Name, " implement of ", oper.Name, ".", m.Name)
 		c.P(0, "func (*", structName, ") ", m.Origin, " {")
-		body(c, &m, runnerName, conf)
+		if m.IsDynamic {
+			concat(c, m, oper, hasPre, hasRep)
+		}
+		body(c, &m, "runner", constName, pre, rep, conf)
 		c.P(0, "}")
 		c.Empty()
 
@@ -87,29 +127,174 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 	return nil
 }
 
-func body(c *coder.Coder, m *parsesql.Method, runnerName string, conf *Conf) {
-	rep := "nil"
-	if len(m.SQL.Replaces) > 0 {
-		rep = strings.Join(m.SQL.Replaces, ", ")
-		rep = fmt.Sprintf("[]interface{}{%s}", rep)
+func concat(c *coder.Coder, m parsesql.Method, oper *parsesql.OperResult, hasPre, hasRep bool) {
+	c.P(1, "// >>> concat start.")
+	preCap, repCap := calcphcap(m)
+	if hasPre {
+		c.P(1, "pvs := make([]interface{}, 0, ", preCap, ")")
 	}
-
-	pre := "nil"
-	if len(m.SQL.Prepares) > 0 {
-		pre = strings.Join(m.SQL.Prepares, ", ")
-		pre = fmt.Sprintf("[]interface{}{%s}", pre)
+	if hasRep {
+		c.P(1, "rvs := make([]interface{}, 0, ", repCap, ")")
 	}
+	c.P(1, "slice := make([]string, 0, ", calcsqlcap(m), ")")
+	initLastidx := false
+	for idx, part := range m.DynamicParts {
+		name := fmt.Sprintf("sql_%s_%s_%d",
+			oper.Name, m.Name, idx)
+		c.P(1, "// concat: part ", idx)
 
+		switch part.Type {
+		case parsesql.DynamicTypeConst:
+			c.P(1, "slice = append(slice, ", name, ")")
+			genph(1, c, part)
+
+		case parsesql.DynamicTypeIf:
+			c.P(1, "if ", part.IfCond, " {")
+			c.P(2, "slice = append(slice, ", name, ")")
+			genph(2, c, part)
+			c.P(1, "}")
+
+		case parsesql.DynamicTypeFor:
+			if part.ForJoin != "" {
+				if initLastidx {
+					c.P(1, "lastidx = len(", name, ") - ", len(part.ForJoin))
+				} else {
+					c.P(1, "lastidx := len(", name, ") - ", len(part.ForJoin))
+					initLastidx = true
+				}
+			}
+			genfor(c, part)
+			genph(2, c, part)
+			if part.ForJoin != "" {
+				c.P(2, "if i == len(", part.ForSlice, ") - 1 {")
+				c.P(3, "slice = append(slice, ", name, "[:lastidx])")
+				c.P(2, "} else {")
+				c.P(3, "slice = append(slice, ", name, ")")
+				c.P(2, "}")
+			} else {
+				c.P(2, "slice = append(slice, ", name, ")")
+			}
+			c.P(1, "}")
+		}
+	}
+	c.AddImport("strings", "strings")
+	c.P(1, "// do concat")
+	c.P(1, "_sql := strings.Join(slice, ", "\" \")")
+	c.P(1, "// >>> concat done.")
+}
+
+func genfor(c *coder.Coder, part *parsesql.DynamicPart) {
+	hasIdx := part.ForJoin != ""
+	hasEle := part.ForEle != ""
+
+	if hasIdx && hasEle {
+		c.P(1, "for i, ", part.ForEle, " := range ", part.ForSlice, " {")
+	} else if hasIdx && !hasEle {
+		c.P(1, "for i := range ", part.ForSlice, "{")
+	} else if !hasIdx && hasEle {
+		c.P(1, "for _, ", part.ForEle, " := range ", part.ForSlice, " {")
+	} else {
+		c.P(1, "for range ", part.ForSlice, " {")
+	}
+}
+
+func genph(nTab int, c *coder.Coder, part *parsesql.DynamicPart) {
+	if len(part.SQL.Prepares) > 0 {
+		c.P(nTab, "pvs = append(pvs, ", strings.Join(part.SQL.Prepares, ", "), ")")
+	}
+	if len(part.SQL.Replaces) > 0 {
+		c.P(nTab, "pvs = append(rvs, ", strings.Join(part.SQL.Replaces, ", "), ")")
+	}
+}
+
+func calcphcap(m parsesql.Method) (string, string) {
+	var (
+		preCnt = 0
+		repCnt = 0
+
+		preSlice []string
+		repSlice []string
+	)
+	for _, part := range m.DynamicParts {
+		switch part.Type {
+		case parsesql.DynamicTypeConst:
+			fallthrough
+		case parsesql.DynamicTypeIf:
+			preCnt += len(part.SQL.Prepares)
+			repCnt += len(part.SQL.Replaces)
+
+		case parsesql.DynamicTypeFor:
+
+			var sliceCap string
+			if len(part.SQL.Prepares) > 0 {
+				if len(part.SQL.Prepares) > 1 {
+					sliceCap = fmt.Sprintf("%d*len(%s)",
+						len(part.SQL.Prepares), part.ForSlice)
+				} else {
+					sliceCap = fmt.Sprintf("len(%s)",
+						part.ForSlice)
+				}
+				preSlice = append(preSlice, sliceCap)
+			}
+
+			if len(part.SQL.Replaces) > 0 {
+				if len(part.SQL.Replaces) > 1 {
+					sliceCap = fmt.Sprintf("%d*len(%s)",
+						len(part.SQL.Replaces), part.ForSlice)
+				} else {
+					sliceCap = fmt.Sprintf("len(%s)",
+						part.ForSlice)
+				}
+				repSlice = append(repSlice, sliceCap)
+			}
+		}
+	}
+	return calccap(preCnt, preSlice),
+		calccap(repCnt, repSlice)
+}
+
+func calcsqlcap(m parsesql.Method) string {
+	cap := 0
+	var slices []string
+	for _, part := range m.DynamicParts {
+		switch part.Type {
+		case parsesql.DynamicTypeIf:
+			fallthrough
+		case parsesql.DynamicTypeConst:
+			cap += 1
+		case parsesql.DynamicTypeFor:
+			slicecap := fmt.Sprintf("len(%s)", part.ForSlice)
+			slices = append(slices, slicecap)
+		}
+	}
+	return calccap(cap, slices)
+}
+
+func calccap(cap int, extracts []string) string {
+	if cap == 0 {
+		if len(extracts) == 0 {
+			return "0"
+		}
+		return strings.Join(extracts, "+")
+	}
+	if len(extracts) == 0 {
+		return fmt.Sprint(cap)
+	}
+	return fmt.Sprintf("%d+%s", cap, strings.Join(extracts, "+"))
+
+}
+
+func body(c *coder.Coder, m *parsesql.Method, runnerName, sqlName, rep, pre string, conf *Conf) {
 	if m.IsExec {
 		if m.IsAffect() {
-			c.P(1, "return ", runnerName, ".ExecAffect(", conf.DbUse, ", ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".ExecAffect(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ")")
 		}
 		if m.IsLastId() {
-			c.P(1, "return ", runnerName, ".ExecLastId(", conf.DbUse, ", ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".ExecLastId(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ")")
 		}
 		if m.IsResult() {
 			c.AddImport("sql", "database/sql")
-			c.P(1, "return ", runnerName, ".Exec(", conf.DbUse, ", ", rep, ", ", pre, ")")
+			c.P(1, "return ", runnerName, ".Exec(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ")")
 		}
 		return
 	}
@@ -137,7 +322,7 @@ func body(c *coder.Coder, m *parsesql.Method, runnerName string, conf *Conf) {
 
 	if m.IsQueryOne() {
 		c.P(1, "var o ", typeDef)
-		c.P(1, "err := ", runnerName, ".QueryOne(", conf.DbUse, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
+		c.P(1, "err := ", runnerName, ".QueryOne(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
 		if m.RetPointer {
 			c.P(2, "o = new(", m.RetType, ")")
 		}
@@ -152,7 +337,7 @@ func body(c *coder.Coder, m *parsesql.Method, runnerName string, conf *Conf) {
 	}
 
 	c.P(1, "var os ", typeDef)
-	c.P(1, "err := ", runnerName, ".QueryMany(", conf.DbUse, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
+	c.P(1, "err := ", runnerName, ".QueryMany(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ", func(rows *sql.Rows) error {")
 	if m.RetPointer {
 		c.P(2, "o := new(", m.RetType, ")")
 	} else {

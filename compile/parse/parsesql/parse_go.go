@@ -113,6 +113,9 @@ type Method struct {
 	IsAutoRet   bool
 	QueryTables []QueryTable `json:"query_tables"`
 
+	IsDynamic    bool           `json:"is_dynamic"`
+	DynamicParts []*DynamicPart `json:"dynamic_parts"`
+
 	// use for check duplcate imports.
 	importNames *set.Set
 }
@@ -179,6 +182,31 @@ type SQL struct {
 	Contant  string   `json:"contant"`
 	Prepares []string `json:"prepares"`
 	Replaces []string `json:"replaces"`
+}
+
+// dynamic statement segments type
+const (
+	DynamicTypeConst = "Dynamic_Const"
+	DynamicTypeIf    = "Dynamic_If"
+	DynamicTypeFor   = "Dynamic_For"
+)
+
+// DynamicPart is the result of analyzing dynamic SQL
+// statements, including the content and conditions of
+// multiple SQL statement segments. Uses to generate
+// dynamic sql splicing code.
+type DynamicPart struct {
+	Type string `json:"type"`
+
+	SQL SQL `json:"sql"`
+
+	// if condition
+	IfCond string `json:"if_cond"`
+
+	// for loop
+	ForEle   string `json:"for_ele"`
+	ForSlice string `json:"for_slice"`
+	ForJoin  string `json:"for_join"`
 }
 
 // sqlMap is used to index sql statement by name.

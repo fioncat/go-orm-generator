@@ -47,6 +47,11 @@ type Statement struct {
 
 	// origin sql string
 	Origin string `json:"origin"`
+
+	// IsDynamic indicates whether the statement is dynamic,
+	// that is, whether there is a dynamic placeholder like
+	// "+{xxx}" in it.
+	IsDynamic bool
 }
 
 // Do performs a scan on a sql file, scans all sql
@@ -77,8 +82,17 @@ func file(path, content string) (*Result, error) {
 			continue
 		}
 		lineNum := idx + 1
-		if token.SQL_TAG.Prefix(line) {
-			name := strings.TrimLeft(line, token.SQL_TAG.Get())
+		if token.SQL_TAG.Prefix(line) ||
+			token.SQL_DYNAMIC_TAG.Prefix(line) {
+
+			isDynamic := false
+			prefixToken := token.SQL_TAG
+			if token.SQL_DYNAMIC_TAG.Prefix(line) {
+				prefixToken = token.SQL_DYNAMIC_TAG
+				isDynamic = true
+			}
+
+			name := strings.TrimLeft(line, prefixToken.Get())
 			name = strings.TrimSpace(name)
 			if name == "" {
 				// we donot allow empty sql name
@@ -96,6 +110,7 @@ func file(path, content string) (*Result, error) {
 			sm.Path = path
 			sm.LineNum = lineNum
 			sm.Name = name
+			sm.IsDynamic = isDynamic
 
 			var sqlLines []string
 			var pickLine string
@@ -104,7 +119,9 @@ func file(path, content string) (*Result, error) {
 				if idx < 0 {
 					break
 				}
-				if token.SQL_TAG.Prefix(pickLine) {
+				if token.SQL_TAG.Prefix(pickLine) ||
+					token.SQL_DYNAMIC_TAG.Prefix(pickLine) {
+
 					break
 				}
 				sqlIdx := iter.NextP(&pickLine)
@@ -112,6 +129,7 @@ func file(path, content string) (*Result, error) {
 					break
 				}
 				if pickLine == "" ||
+
 					token.SQL_COMMENT.Prefix(pickLine) {
 					// ignore empty and comment line
 					continue

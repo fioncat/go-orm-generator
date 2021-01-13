@@ -169,6 +169,8 @@ var (
 	LPAREN = Key("(")
 	RPAREN = Key(")")
 
+	PLUS = Key("+")
+
 	LBRACE = Key("{")
 	RBRACE = Key("}")
 
@@ -179,6 +181,9 @@ var (
 	MUL    = Key("*")
 	COMMA  = Key(",")
 	PERIOD = Key(".")
+
+	IF  = Key("if")
+	FOR = Key("for")
 )
 
 // go-gendb tag
@@ -202,6 +207,8 @@ var (
 var (
 	SQL_TAG     = Key("-- !")
 	SQL_COMMENT = Key("--")
+
+	SQL_DYNAMIC_TAG = Key("-- +")
 )
 
 // SQL keywords
