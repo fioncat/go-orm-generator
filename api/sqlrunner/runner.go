@@ -13,44 +13,34 @@ type IDB interface {
 
 var ErrNotFound = errors.New("data not found")
 
-type Runner struct {
-	sql string
-}
-
-func New(sql string) *Runner {
-	return &Runner{sql: sql}
-}
-
-func (r *Runner) query(db IDB, rs, vs []interface{}) (*sql.Rows, error) {
-	sql := r.sql
+func query(db IDB, sql string, rs, vs []interface{}) (*sql.Rows, error) {
 	if len(rs) > 0 {
 		sql = fmt.Sprintf(sql, rs...)
 	}
 	return db.Query(sql, vs...)
 }
 
-func (r *Runner) exec(db IDB, rs, vs []interface{}) (sql.Result, error) {
-	sql := r.sql
+func exec(db IDB, sql string, rs, vs []interface{}) (sql.Result, error) {
 	if len(rs) > 0 {
 		sql = fmt.Sprintf(sql, rs...)
 	}
 	return db.Exec(sql, vs...)
 }
 
-func (r *Runner) Exec(db IDB, rs, vs []interface{}) (sql.Result, error) {
-	return r.exec(db, rs, vs)
+func Exec(db IDB, sql string, rs, vs []interface{}) (sql.Result, error) {
+	return exec(db, sql, rs, vs)
 }
 
-func (r *Runner) ExecAffect(db IDB, rs, vs []interface{}) (int64, error) {
-	result, err := r.exec(db, rs, vs)
+func ExecAffect(db IDB, sql string, rs, vs []interface{}) (int64, error) {
+	result, err := exec(db, sql, rs, vs)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected()
 }
 
-func (r *Runner) ExecLastId(db IDB, rs, vs []interface{}) (int64, error) {
-	result, err := r.exec(db, rs, vs)
+func ExecLastId(db IDB, sql string, rs, vs []interface{}) (int64, error) {
+	result, err := exec(db, sql, rs, vs)
 	if err != nil {
 		return 0, err
 	}
@@ -59,8 +49,8 @@ func (r *Runner) ExecLastId(db IDB, rs, vs []interface{}) (int64, error) {
 
 type ScanFunc func(rows *sql.Rows) error
 
-func (r *Runner) QueryMany(db IDB, rs, vs []interface{}, scanFunc ScanFunc) error {
-	rows, err := r.query(db, rs, vs)
+func QueryMany(db IDB, sql string, rs, vs []interface{}, scanFunc ScanFunc) error {
+	rows, err := query(db, sql, rs, vs)
 	if err != nil {
 		return err
 	}
@@ -74,8 +64,8 @@ func (r *Runner) QueryMany(db IDB, rs, vs []interface{}, scanFunc ScanFunc) erro
 	return nil
 }
 
-func (r *Runner) QueryOne(db IDB, rs, vs []interface{}, scanFunc ScanFunc) error {
-	rows, err := r.query(db, rs, vs)
+func QueryOne(db IDB, sql string, rs, vs []interface{}, scanFunc ScanFunc) error {
+	rows, err := query(db, sql, rs, vs)
 	if err != nil {
 		return err
 	}

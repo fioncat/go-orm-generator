@@ -1,6 +1,8 @@
 package parsesql
 
 import (
+	"strings"
+
 	"github.com/fioncat/go-gendb/compile/scan/scango"
 	"github.com/fioncat/go-gendb/compile/scan/scansql"
 	"github.com/fioncat/go-gendb/compile/token"
@@ -17,15 +19,25 @@ import (
 // The inline table of the subquery will be returned as a normal
 // table. This may cause ambiguity, which needs to be optimized later.
 func _sql(goPath string, sql scansql.Statement, method *Method, sm *scango.Method) error {
-	phs, err := scansql.DoPlaceholders(sql.Path, sql.LineNum, sql.Origin)
-	if err != nil {
-		return err
-	}
 
-	method.SQL = SQL{
-		Contant:  phs.SQL,
-		Prepares: phs.Prepares,
-		Replaces: phs.Replaces,
+	var err error
+	if !sql.IsDynamic {
+		phs, err := scansql.DoPlaceholders(sql.Path, sql.LineNum, sql.Origin)
+		if err != nil {
+			return err
+		}
+
+		method.SQL = SQL{
+			Contant:  phs.SQL,
+			Prepares: phs.Prepares,
+			Replaces: phs.Replaces,
+		}
+	} else {
+		method.IsDynamic = true
+		method.DynamicParts, err = dynamic(sql.Path, sql.LineNum, sql.Origin)
+		if err != nil {
+			return err
+		}
 	}
 
 	ef := errors.NewParseFactory(sql.Path, sql.LineNum)
@@ -351,4 +363,82 @@ func _tables(iter *iter.Iter, m *Method, ef *errors.ParseErrorFactory) error {
 			m.QueryTables = append(m.QueryTables, table)
 		}
 	}
+}
+
+func dynamic(path string, line int, sql string) ([]*DynamicPart, error) {
+	scanParts, err := scansql.DoDynamic(path, line, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := make([]*DynamicPart, len(scanParts))
+	for idx, scanPart := range scanParts {
+
+		part := &DynamicPart{
+			SQL: SQL{
+				Contant:  scanPart.SQL.SQL,
+				Prepares: scanPart.SQL.Prepares,
+				Replaces: scanPart.SQL.Replaces,
+			},
+		}
+
+		switch scanPart.Type {
+		case scansql.DynamicTypeConst:
+			part.Type = DynamicTypeConst
+
+		case scansql.DynamicTypeIf:
+			part.IfCond = scanPart.Cond
+			part.Type = DynamicTypeIf
+
+		case scansql.DynamicTypeFor:
+			part.Type = DynamicTypeFor
+			tmp := strings.Split(scanPart.Cond, ":")
+			switch len(tmp) {
+			case 1:
+				part.ForSlice = tmp[0]
+
+			case 3:
+				part.ForJoin = tmp[2]
+				part.ForJoin = strings.ReplaceAll(
+					part.ForJoin, "'", "")
+				fallthrough
+
+			case 2:
+				part.ForEle = tmp[0]
+				part.ForSlice = tmp[1]
+
+				foundEle := checkContains(
+					part.SQL.Prepares, part.ForEle)
+				if !foundEle {
+					foundEle = checkContains(
+						part.SQL.Replaces, part.ForEle)
+				}
+				if !foundEle {
+					part.ForEle = ""
+				}
+
+			default:
+				return nil, errors.NewComp(path, line,
+					"for condition bad format: %s", scanPart.Cond)
+			}
+
+		default:
+			// Never trigger, prevent
+			return nil, errors.NewComp(path, line,
+				"unknown type code=%d", scanPart.Type)
+		}
+
+		parts[idx] = part
+	}
+
+	return parts, nil
+}
+
+func checkContains(vs []string, tar string) bool {
+	for _, v := range vs {
+		if strings.Contains(v, tar) {
+			return true
+		}
+	}
+	return false
 }
