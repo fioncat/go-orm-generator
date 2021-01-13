@@ -115,7 +115,7 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 		if m.IsDynamic {
 			concat(c, m, oper, hasPre, hasRep)
 		}
-		body(c, &m, "runner", constName, pre, rep, conf)
+		body(c, &m, "runner", constName, rep, pre, conf)
 		c.P(0, "}")
 		c.Empty()
 
