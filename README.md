@@ -5,9 +5,9 @@ go-gendb是一个快速生成数据库访问代码的工具。利用它可以将
 这样做的好处是：
 
 - SQL语句定义在外部sql文件中，编辑器直接原生支持高亮、自动补全等功能，方便编写语句。
-- 在SQL语句中通过具名占位符"${name}"来引入参数，在代码生成时对占位符进行替换。使得参数更加清晰易懂，避免在SQL语句中写很多的"?"或"%s"这样的意义不明的占位符。
-- （尚未支持）支持SQL语句复用，通过"@{name}"占位符引入，避免大量重复SQL的编写。
-- （尚未支持）通过"!{if xxx} !{endif}"和"!{for xxx} !{endfor}"在SQL语句中插入动态内容，根据不同的参数来生成不同的SQL语句，避免字符串拼接操作的编写。
+- 在SQL语句中通过具名占位符`${name}`和`#{name}`来引入参数，在代码生成时对占位符进行替换。使得参数更加清晰易懂，避免在SQL语句中写很多的`"?"`或`"%s"`这样的意义不明的占位符。
+- （尚未支持）支持SQL语句复用，通过`@{name}`占位符引入，避免大量重复SQL的编写。
+- 通过`+{if xxx} +{endif}`和`+{for xxx} +{endfor}`在SQL语句中插入动态内容，根据不同的参数来生成不同的SQL语句，避免字符串拼接操作的编写。
 - 通过解析查询语句的SELECT子句，自动生成`rows.Scan(...)`，避免编写冗长的fields列表。
 - 对于查询语句，支持连接数据库，读取查询字段的类型，自动生成查询语句的返回结构体。
 - （尚未支持）对于特别简单的SQL语句，例如简单的CRUD，和简单的单表查询语句，支持直接生成SQL语句和Go调用函数。
@@ -93,12 +93,12 @@ type UserDb interface {
 
 可见各种标记是通过注释引入的，go-gendb会识别这些注释，如果想要生成数据库操作方法，必须遵从：
 
-- 代码的"package"定义之前必须有"+gendb sql"声明。
-- 将要生成的函数放在接口里面，并通过"+gendb {path/to/sql}"来标记接口。其中后面的"{path/to/sql}"表示该接口关联的sql文件的路径（相对当前代码文件的相对路径），可以有多个（通过空格分隔），我们在稍后会定义这个sql文件。在上述例子中`UserDb`通过"+gendb user.sql"标记，说明它关联的SQL在代码路径下的"user.sql"中。
-- 接口里面每个方法的定义必须满足："{name}({params}) ({ret}, error)"的形式。其中，参数部分和正常的Go函数参数定义一样，没有什么限制。但是返回值的第二个必须是`error`，第一个返回值对于查询语句来说，如果是非切片，则表示SQL语句返回一条记录，如果是切片则表示返回多条记录；如果语句是执行语句，必须是`sql.Result`或`int64`。
-- 使用"auto-ret"标记查询方法，表示会自动为该方法生成返回结构体。如果你懒得定义方法的返回结构体可以加上，但是为了获取字段类型，go-gendb在生成代码中必须连接数据库。
+- 代码的`package`定义之前必须有`+gendb sql`声明。
+- 将要生成的函数放在接口里面，并通过`+gendb {path/to/sql}`来标记接口。其中后面的`{path/to/sql}`表示该接口关联的sql文件的路径（相对当前代码文件的相对路径），可以有多个（通过空格分隔），我们在稍后会定义这个sql文件。在上述例子中`UserDb`通过`+gendb user.sql`标记，说明它关联的SQL在代码路径下的`user.sql`中。
+- 接口里面每个方法的定义必须满足：`{name}({params}) ({ret}, error)`的形式。其中，参数部分和正常的Go函数参数定义一样，没有什么限制。但是返回值的第二个必须是`error`，第一个返回值对于查询语句来说，如果是非切片，则表示SQL语句返回一条记录，如果是切片则表示返回多条记录；如果语句是执行语句，必须是`sql.Result`或`int64`。
+- 使用`auto-ret`标记查询方法，表示会自动为该方法生成返回结构体。如果你懒得定义方法的返回结构体可以加上，但是为了获取字段类型，go-gendb在生成代码中必须连接数据库。
 
-定义好之后，需要定义上面的方法对应的SQL语句，我们已经通过"+gendb user.sql"标记了"user.sql"为该接口SQL语句的位置，则在当前目录下创建"user.sql"文件并编写SQL语句：
+定义好之后，需要定义上面的方法对应的SQL语句，我们已经通过`+gendb user.sql`标记了"user.sql"为该接口SQL语句的位置，则在当前目录下创建"user.sql"文件并编写SQL语句：
 
 ```sql
 -- UserDb的SQL语句
@@ -131,7 +131,7 @@ WHERE id=${id};
 SELECT COUNT(1) FROM user WHERE is_delete=0;
 ```
 
-可以看到，通过"-- !{name}"的形式将SQL语句和方法进行关联。在SQL语句中通过"${name}"表示参数。
+可以看到，通过`-- !{name}`的形式将SQL语句和方法进行关联。在SQL语句中通过`${name}`表示参数。
 
 因为上述过程涉及到`auto-gen`所以需要配置数据库连接，通过以下的命令配置：
 
@@ -153,7 +153,7 @@ $ go-gendb gen --conn test oper.go
 
 生成的代码包括两个文件，其中，"zz_generated_Struct.go"保存了生成的"User"结构体，你可以到[samples/quickstart/zz_generated_Struct.go](samples/quickstart/zz_generated_Struct.go)下查看；"zz_generated_oper.UserDb.go"保存了"UserDb"接口的实现，可以到[samples/quickstart/zz_generated_oper.UserDb.go](samples/quickstart/zz_generated_oper.UserDb.go)下查看。
 
-在使用的时候，可以直接用生成的"UserDbOper"全局变量实现操作，它实现了"UserDb"接口：
+在使用的时候，可以直接用生成的`UserDbOper`全局变量实现操作，它实现了`UserDb`接口：
 
 ```go
 package main
