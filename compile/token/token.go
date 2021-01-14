@@ -209,6 +209,7 @@ var (
 	SQL_COMMENT = Key("--")
 
 	SQL_DYNAMIC_TAG = Key("-- +")
+	SQL_REUSE_TAG   = Key("-- @")
 )
 
 // SQL keywords
@@ -254,6 +255,7 @@ var (
 
 // SQL Plarceholders
 var (
-	SQLPH_PRE = Key("$")
-	SQLPH_REP = Key("#")
+	SQLPH_PRE   = Key("$")
+	SQLPH_REP   = Key("#")
+	SQLPH_REUSE = Key("@")
 )
