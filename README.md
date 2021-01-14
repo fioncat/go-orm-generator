@@ -6,7 +6,7 @@ go-gendb是一个快速生成数据库访问代码的工具。利用它可以将
 
 - SQL语句定义在外部sql文件中，编辑器直接原生支持高亮、自动补全等功能，方便编写语句。
 - 在SQL语句中通过具名占位符`${name}`和`#{name}`来引入参数，在代码生成时对占位符进行替换。使得参数更加清晰易懂，避免在SQL语句中写很多的`"?"`或`"%s"`这样的意义不明的占位符。
-- （尚未支持）支持SQL语句复用，通过`@{name}`占位符引入，避免大量重复SQL的编写。
+- 支持SQL语句复用，通过`--@`定义复用sql语句段，通过`@{name}`占位符在语句中引入，避免大量重复SQL的编写。
 - 通过`+{if xxx} +{endif}`和`+{for xxx} +{endfor}`在SQL语句中插入动态内容，根据不同的参数来生成不同的SQL语句，避免字符串拼接操作的编写。
 - 通过解析查询语句的SELECT子句，自动生成`rows.Scan(...)`，避免编写冗长的fields列表。
 - 对于查询语句，支持连接数据库，读取查询字段的类型，自动生成查询语句的返回结构体。
@@ -159,25 +159,25 @@ $ go-gendb gen --conn test oper.go
 package main
 
 import (
-  "database/sql"
+    "database/sql"
   
-  user "github.com/fioncat/go-gendb/samples/quickstart"
+    user "github.com/fioncat/go-gendb/samples/quickstart"
 )
 
 func main() {
-  db, err := sql.Open("mysql", ...)
-  if err != nil { ... }
+    db, err := sql.Open("mysql", ...)
+    if err != nil { ... }
   
-  // 调用FindById
-  user, err := user.UserDbOper.FindById(db, 1)
-  // 调用FindAdmins
-  users, err := user.UserDbOper.FindAdmins(db)
-  // 调用UpdateAge
-  _, err = user.UserDbOper.UpdateAge(db, 1, 23)
-  // 调用DeleteUser
-  _, err = user.UserDbOper.DeleteUser(db, 2)
-  // 调用Count
-  total, err := user.UserDbOper.Count(db)
+    // 调用FindById
+    user, err := user.UserDbOper.FindById(db, 1)
+    // 调用FindAdmins
+    users, err := user.UserDbOper.FindAdmins(db)
+    // 调用UpdateAge
+    _, err = user.UserDbOper.UpdateAge(db, 1, 23)
+    // 调用DeleteUser
+    _, err = user.UserDbOper.DeleteUser(db, 2)
+    // 调用Count
+    total, err := user.UserDbOper.Count(db)
 }
 ```
 

@@ -68,6 +68,8 @@ func file(path, content string) (*Result, error) {
 	var r Result
 	r.Path = path
 
+	sqlConst := make(map[string]string)
+
 	r.nameSet = set.New()
 	iter := iter.New(strings.Split(content, "\n"))
 
@@ -82,6 +84,27 @@ func file(path, content string) (*Result, error) {
 			continue
 		}
 		lineNum := idx + 1
+
+		if token.SQL_REUSE_TAG.Prefix(line) {
+			name := strings.TrimLeft(line, token.SQL_REUSE_TAG.Get())
+			if name == "" {
+				return nil, errors.NewComp(path, lineNum,
+					"sql const name is empty")
+			}
+			if _, ok := sqlConst[name]; ok {
+				return nil, errors.NewComp(path, lineNum,
+					`sql const "%s" is duplicate`, name)
+			}
+
+			sqlLines := pickSQL(iter)
+			if len(sqlLines) == 0 {
+				return nil, errors.NewComp(path, lineNum,
+					"sql const '%s' is empty")
+			}
+
+			sqlConst[name] = strings.Join(sqlLines, " ")
+		}
+
 		if token.SQL_TAG.Prefix(line) ||
 			token.SQL_DYNAMIC_TAG.Prefix(line) {
 
@@ -111,35 +134,18 @@ func file(path, content string) (*Result, error) {
 			sm.LineNum = lineNum
 			sm.Name = name
 			sm.IsDynamic = isDynamic
-
-			var sqlLines []string
-			var pickLine string
-			for {
-				idx := iter.Pick(&pickLine)
-				if idx < 0 {
-					break
-				}
-				if token.SQL_TAG.Prefix(pickLine) ||
-					token.SQL_DYNAMIC_TAG.Prefix(pickLine) {
-
-					break
-				}
-				sqlIdx := iter.NextP(&pickLine)
-				if sqlIdx < 0 {
-					break
-				}
-				if pickLine == "" ||
-
-					token.SQL_COMMENT.Prefix(pickLine) {
-					// ignore empty and comment line
-					continue
-				}
-				sqlLines = append(sqlLines, pickLine)
-			}
-
-			sm.Origin = strings.Join(sqlLines, " ")
+			sm.Origin = strings.Join(pickSQL(iter), " ")
 
 			var err error
+			if token.SQLPH_REUSE.Contains(sm.Origin) {
+				// SQL contains const, handles and replaces them.
+				sm.Origin, err = handleConst(path, lineNum,
+					sm.Origin, sqlConst)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			sm.Tokens, err = sql(path, lineNum, sm.Origin)
 			if err != nil {
 				return nil, err
@@ -157,6 +163,34 @@ func file(path, content string) (*Result, error) {
 		}
 	}
 	return &r, nil
+}
+
+func pickSQL(iter *iter.Iter) []string {
+	var sqlLines []string
+	var pickLine string
+	for {
+		idx := iter.Pick(&pickLine)
+		if idx < 0 {
+			break
+		}
+		if token.SQL_TAG.Prefix(pickLine) ||
+			token.SQL_DYNAMIC_TAG.Prefix(pickLine) ||
+			token.SQL_REUSE_TAG.Prefix(pickLine) {
+
+			break
+		}
+		sqlIdx := iter.NextP(&pickLine)
+		if sqlIdx < 0 {
+			break
+		}
+		if pickLine == "" ||
+			token.SQL_COMMENT.Prefix(pickLine) {
+			// ignore empty and comment line
+			continue
+		}
+		sqlLines = append(sqlLines, pickLine)
+	}
+	return sqlLines
 }
 
 const (
@@ -245,4 +279,58 @@ func sql(path string, lineNum int, s string) ([]token.Token, error) {
 	}
 	bucket.Indent()
 	return bucket.Get(), nil
+}
+
+// replace const placeholder(@{name}) into sql section.
+func handleConst(path string, line int, sql string, constMap map[string]string) (string, error) {
+	iter := iter.New([]rune(sql))
+	var bucket []rune
+
+	var ch rune
+	var idx int
+	for {
+		idx = iter.NextP(&ch)
+		if idx < 0 {
+			break
+		}
+
+		if token.SQLPH_REUSE.EqRune(ch) {
+			// the next is '{'
+			var next rune
+			iter.Pick(&next)
+			if !token.LBRACE.EqRune(next) {
+				bucket = append(bucket, ch)
+				continue
+			}
+			iter.Next(nil)
+
+			var nameBucket []rune
+			for {
+				idx = iter.NextP(&ch)
+				if idx < 0 {
+					return "", errors.NewComp(path, line,
+						"missing '}'")
+				}
+				if token.RBRACE.EqRune(ch) {
+					break
+				}
+				nameBucket = append(nameBucket, ch)
+			}
+			if len(nameBucket) == 0 {
+				return "", errors.NewComp(path, line,
+					"missing const name").WithCharNum(idx)
+			}
+			name := string(nameBucket)
+			sql, ok := constMap[name]
+			if !ok {
+				return "", errors.NewComp(path, line,
+					`can not find const "%s"`, name).WithCharNum(idx)
+			}
+
+			bucket = append(bucket, []rune(sql)...)
+			continue
+		}
+		bucket = append(bucket, ch)
+	}
+	return string(bucket), nil
 }
