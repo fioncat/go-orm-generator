@@ -147,6 +147,10 @@ type Field interface {
 
 	// GetName returns the db type of the data table field
 	GetType() string
+
+	IsPrimaryKey() bool
+
+	IsAutoIncr() bool
 }
 
 // CheckResult represents the result of checking the sql

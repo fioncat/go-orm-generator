@@ -60,9 +60,11 @@ func (t *CacheTable) fromInter(it Table) {
 			continue
 		}
 		t.Fields[fieldName] = &CacheField{
-			Name:    field.GetName(),
-			Comment: field.GetComment(),
-			Type:    field.GetType(),
+			Name:      field.GetName(),
+			Comment:   field.GetComment(),
+			Type:      field.GetType(),
+			IsPrimary: field.IsPrimaryKey(),
+			AutoIncr:  field.IsAutoIncr(),
 		}
 	}
 }
@@ -71,14 +73,18 @@ func (t *CacheTable) fromInter(it Table) {
 // cached on the disk. It implements the Field interface,
 // and any Table interface can be converted to it.
 type CacheField struct {
-	Name    string `json:"name"`
-	Comment string `json:"comment"`
-	Type    string `json:"type"`
+	Name      string `json:"name"`
+	Comment   string `json:"comment"`
+	Type      string `json:"type"`
+	IsPrimary bool   `json:"is_primary"`
+	AutoIncr  bool   `json:"auto_incr"`
 }
 
 func (f *CacheField) GetName() string    { return f.Name }
 func (f *CacheField) GetComment() string { return f.Comment }
 func (f *CacheField) GetType() string    { return f.Type }
+func (f *CacheField) IsPrimaryKey() bool { return f.IsPrimary }
+func (f *CacheField) IsAutoIncr() bool   { return f.AutoIncr }
 
 // get table from the local disk, if cache miss, returns nil
 func getCacheTable(key string) Table {

@@ -19,6 +19,7 @@ import (
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/generate/internal/gensql"
+	"github.com/fioncat/go-gendb/generate/internal/gensqlorm"
 	"github.com/fioncat/go-gendb/generate/internal/genstruct"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/log"
@@ -254,6 +255,7 @@ var (
 
 func init() {
 	generators["db-oper"] = &gensql.Generator{}
+	generators["sql-orm"] = &gensqlorm.Generator{}
 	generators["struct"] = &genstruct.Generator{}
 
 	for key, gen := range generators {
