@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/fioncat/go-gendb/build"
@@ -237,6 +238,21 @@ func (*Parser) Do(sr *scango.Result) ([]mediate.Result, error) {
 			if m.IsAutoRet && m.RetStruct != nil {
 				oper.Structs = append(oper.Structs, m.RetStruct)
 			}
+		}
+	}
+
+	// orm-tags
+	for _, tag := range sr.ExtractTags {
+		for _, arg := range tag.Args {
+			if !strings.HasPrefix(arg, "orm:") {
+				continue
+			}
+			tableName := strings.TrimLeft(arg, "orm:")
+			result, err := orm(tableName)
+			if err != nil {
+				return nil, err
+			}
+			results = append(results, result)
 		}
 	}
 

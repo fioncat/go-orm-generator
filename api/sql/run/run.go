@@ -1,4 +1,4 @@
-package sqlrunner
+package run
 
 import (
 	"database/sql"

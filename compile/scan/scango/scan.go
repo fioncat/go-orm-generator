@@ -135,6 +135,8 @@ type Result struct {
 	// Tagged indents and interfaces in go file. May be empty.
 	Indents    []Indent    `json:"indents"`
 	Interfaces []Interface `json:"interfaces"`
+
+	ExtractTags []Tag `json:"extract_tags"`
 }
 
 // Do scans the content of the go code file and converts it
@@ -275,7 +277,7 @@ func body(path string, iter *iter.Iter, result *Result) error {
 	for {
 		idx := iter.NextP(&line)
 		if idx < 0 {
-			return nil
+			break
 		}
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -373,6 +375,9 @@ func body(path string, iter *iter.Iter, result *Result) error {
 			continue
 		}
 	}
+
+	result.ExtractTags = tags
+	return nil
 }
 
 func isTag(line string) bool {

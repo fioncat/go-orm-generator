@@ -45,6 +45,8 @@ type mysqlField struct {
 func (f *mysqlField) GetName() string    { return f.Name }
 func (f *mysqlField) GetComment() string { return f.Comment }
 func (f *mysqlField) GetType() string    { return f.Type }
+func (f *mysqlField) IsPrimaryKey() bool { return f.Key.String == "PRI" }
+func (f *mysqlField) IsAutoIncr() bool   { return f.Extract.String == "auto_increment" }
 
 type mysqlTable struct {
 	Name    string

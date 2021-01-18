@@ -32,7 +32,7 @@ func (*Generator) ConfType() interface{} {
 
 func (*Generator) DefaultConf() interface{} {
 	return &Conf{
-		RunnerPath: "github.com/fioncat/go-gendb/api/sqlrunner",
+		RunnerPath: "github.com/fioncat/go-gendb/api/sql/run",
 		DbUse:      "db",
 		DbImport:   "",
 	}
