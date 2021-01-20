@@ -12,12 +12,11 @@ go-gendb是一个快速生成数据库访问代码的工具。利用它可以将
 - 对于查询语句，支持连接数据库，读取查询字段的类型，自动生成查询语句的返回结构体。
 - 对于特别简单的SQL语句，例如简单的CRUD，和简单的单表查询语句，支持直接生成SQL语句和Go调用函数。
 - （尚未支持）对no-sql的支持
-- ...
 
 除此之外，go-gendb还提供了一些便捷的工具：
 
 - check：一键调用数据库对编写的SQL语句进行"DESC"检查，发现语句语法错误和警告信息。例如查询语句的全表扫描。
-- ...
+- exec：直接执行某个SQL语句，可以快速查看语句的执行情况（不支持动态语句）。
 
 希望它能给你带来快乐:)
 
@@ -105,16 +104,16 @@ type UserDb interface {
 
 -- !FindById
 SELECT
-	id, name, email, phone, age, create_time,
-	password, is_admin, is_delete
+  id, name, email, phone, age, create_time,
+  password, is_admin, is_delete
 
 FROM user
 WHERE id=${id} AND is_delete=0;
 
 -- !FindAdmins
 SELECT
-	id, name, email, phone, age, create_time,
- 	password, is_admin, is_delete
+  id, name, email, phone, age, create_time,
+  password, is_admin, is_delete
 
 FROM user
 WHERE is_admin=1 AND is_delete=0;

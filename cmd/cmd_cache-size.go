@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fioncat/go-gendb/cmd/help"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 	"github.com/fioncat/go-gendb/misc/humansize"
 	"github.com/fioncat/go-gendb/store"
@@ -16,6 +17,9 @@ type cacheArg struct {
 var cacheSizeCmd = &cmdt.Command{
 	Name: "cache-size",
 	Pv:   (*cacheArg)(nil),
+
+	Usage: help.CacheSizeUsage,
+	Help:  help.CacheSize,
 
 	Action: func(p interface{}) error {
 		prefix := p.(*cacheArg).Prefix

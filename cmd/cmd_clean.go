@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fioncat/go-gendb/cmd/help"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 )
 
@@ -16,6 +17,9 @@ type cleanArg struct {
 var cleanCmd = &cmdt.Command{
 	Name: "clean",
 	Pv:   (*cleanArg)(nil),
+
+	Usage: help.CleanUsage,
+	Help:  help.Clean,
 
 	Action: func(p interface{}) error {
 		path := p.(*cleanArg).Path
