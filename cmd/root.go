@@ -16,6 +16,7 @@ func init() {
 	cmds["parse"] = parseCmd
 	cmds["conn-set"] = setConnCmd
 	cmds["conn-get"] = getConnCmd
+	cmds["conn-del"] = delConnCmd
 	cmds["gen"] = genCmd
 	cmds["batch"] = batchCmd
 	cmds["cache-size"] = cacheSizeCmd

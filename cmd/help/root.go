@@ -16,6 +16,7 @@ Generate Commands:
     batch        Scan directory and generate multi-files.
     clean        Remove generated code(s).
     clean-cache  Clean cached data.
+    cache-size   Show the disk space occupied by the cache.
 
 Connection Commands:
     conn-set     Set database connection.

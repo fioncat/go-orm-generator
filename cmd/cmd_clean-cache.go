@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fioncat/go-gendb/cmd/help"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 	"github.com/fioncat/go-gendb/store"
 )
@@ -12,6 +13,9 @@ import (
 var cleanCacheCmd = &cmdt.Command{
 	Name: "clean-cache",
 	Pv:   (*cacheArg)(nil),
+
+	Usage: help.CleanCacheUsage,
+	Help:  help.CleanCache,
 
 	Action: func(p interface{}) error {
 		prefix := p.(*cacheArg).Prefix
