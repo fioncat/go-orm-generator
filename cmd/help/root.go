@@ -22,6 +22,10 @@ Connection Commands:
     conn-get     Show database connection.
     conn-del     Remove database connection.
 
+Database Tools:
+    check    Check the errors or warnings for sql.
+    exec     Execute sql statement.
+
 Debug Commands:
     scan    Perform lexical analysis on the file.
     parse   Perform syntax analysis on the code.

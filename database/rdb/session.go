@@ -93,6 +93,23 @@ func (s *Session) GoType(sqlType string) string {
 	return s.oper.ConvertType(sqlType)
 }
 
+// Query directly uses the session's database connection
+// to execute a SQL query statement.
+func (s *Session) Query(sql string, vs ...interface{}) (*sql.Rows, error) {
+	return s.db.Query(sql, vs...)
+}
+
+// Exec directly uses the session's database connection
+// to execute a SQL execution statement, and returns the
+// number of rows affected by the statement execution.
+func (s *Session) Exec(sql string, vs ...interface{}) (int64, error) {
+	res, err := s.db.Exec(sql, vs...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // dbOper represents internal database operations, and
 // different types of databases have different implementations.
 type dbOper interface {

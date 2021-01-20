@@ -162,6 +162,8 @@ type QueryField struct {
 	Table string `json:"table"`
 	Field string `json:"field"`
 	Alias string `json:"alias"`
+
+	IsCount bool `json:"is_count"`
 }
 
 // QueryTable represents the query table of SQL query

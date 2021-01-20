@@ -10,6 +10,30 @@ import (
 	"github.com/fioncat/go-gendb/misc/iter"
 )
 
+// Statement only parses SQL statements, and the returned
+// Method data does not contain data required for code
+// generation. This function is generally used for operations
+// on sql statements (not involving code generation).
+func Statement(stat *scansql.Statement) (*Method, error) {
+	if len(stat.Tokens) == 0 {
+		return nil, errors.NewComp(stat.Path, stat.LineNum, "empty sql")
+	}
+	sm := new(scango.Method)
+	m := new(Method)
+	if token.SQL_SELECT.Match(stat.Tokens[0]) {
+		sm.Flag.Tags = []scango.Tag{
+			{Args: []string{"auto-ret"}},
+		}
+	} else {
+		m.RetType = "sql.Result"
+	}
+	err := _sql("non-go", *stat, m, sm)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // parse sql tokens.
 // If it is an execution sql statement, only parse return type.
 // If it is a query, parse its SELECT cluase to get QueryFields,
@@ -60,9 +84,7 @@ func _sql(goPath string, sql scansql.Statement, method *Method, sm *scango.Metho
 		// type, parse it and assign to Type.
 		var tagLine int
 		var execArg = defaultExecType
-		switch len(sm.Tags) {
-		case 0:
-		case 1:
+		if len(sm.Tags) >= 1 {
 			tag := sm.Tags[0]
 			if len(tag.Args) != 1 {
 				return errors.NewComp(goPath, tag.Line,
@@ -70,10 +92,6 @@ func _sql(goPath string, sql scansql.Statement, method *Method, sm *scango.Metho
 			}
 			tagLine = tag.Line
 			execArg = tag.Args[0]
-
-		default:
-			return errors.NewComp(goPath, sm.Line,
-				"too many tags for exec method")
 		}
 
 		method.Type = parseExecType(execArg)
@@ -259,6 +277,7 @@ func _ifnull(iter *iter.Iter, field *QueryField, ef *errors.ParseErrorFactory) e
 // be provided later.
 func _count(iter *iter.Iter, field *QueryField) error {
 	field.Field = "count"
+	field.IsCount = true
 	for {
 		ok := iter.Next(nil)
 		if !ok {
