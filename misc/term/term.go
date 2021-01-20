@@ -50,3 +50,11 @@ func Cyan(s string) string {
 func Info(s string) string {
 	return colorString(s, colorsMap["green"])
 }
+
+func Input(msg string, vs ...interface{}) string {
+	msg = fmt.Sprintf(msg, vs...)
+	var input string
+	fmt.Print(msg + ": ")
+	fmt.Scanf("%s", &input)
+	return input
+}

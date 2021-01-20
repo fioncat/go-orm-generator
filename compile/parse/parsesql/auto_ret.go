@@ -10,6 +10,16 @@ import (
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
+// AutoRet directly parses the query field of the method,
+// generates a structure and returns.
+func AutoRet(method *Method) (*coder.Struct, error) {
+	err := genRetStruct("", method)
+	if err != nil {
+		return nil, err
+	}
+	return method.RetStruct, nil
+}
+
 var tableCache sync.Map
 
 func genRetStruct(interName string, m *Method) error {

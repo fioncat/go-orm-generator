@@ -6,7 +6,7 @@ import (
 )
 
 // version(build-in)
-const VERSION = "0.1.4"
+const VERSION = "0.1.5"
 
 // ShowVersion show version in the terminal.
 func ShowVersion() {
