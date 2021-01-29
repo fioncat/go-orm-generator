@@ -169,7 +169,8 @@ var (
 	LPAREN = Key("(")
 	RPAREN = Key(")")
 
-	PLUS = Key("+")
+	PLUS  = Key("+")
+	COLON = Key(":")
 
 	LBRACE = Key("{")
 	RBRACE = Key("}")
