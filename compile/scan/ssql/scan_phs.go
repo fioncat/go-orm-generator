@@ -1,4 +1,4 @@
-package scansql
+package ssql
 
 import (
 	"strings"

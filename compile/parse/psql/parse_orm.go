@@ -1,4 +1,4 @@
-package parsesql
+package psql
 
 import (
 	"github.com/fioncat/go-gendb/database/rdb"

@@ -1,4 +1,4 @@
-package parsesql
+package psql
 
 import (
 	"fmt"

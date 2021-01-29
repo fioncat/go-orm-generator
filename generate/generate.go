@@ -14,13 +14,13 @@ import (
 	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/mediate"
 	"github.com/fioncat/go-gendb/compile/parse"
-	"github.com/fioncat/go-gendb/compile/scan/scango"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/generate/coder"
-	"github.com/fioncat/go-gendb/generate/internal/gensql"
-	"github.com/fioncat/go-gendb/generate/internal/gensqlorm"
-	"github.com/fioncat/go-gendb/generate/internal/genstruct"
+	"github.com/fioncat/go-gendb/generate/internal/gorm"
+	"github.com/fioncat/go-gendb/generate/internal/gsql"
+	"github.com/fioncat/go-gendb/generate/internal/gstruct"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/log"
 	"github.com/fioncat/go-gendb/misc/trace"
@@ -133,7 +133,7 @@ func one(path string, data, confData []byte) error {
 	defer tt.Trace()
 
 	tt.Start("scan")
-	sr, err := scango.Do(path, string(data))
+	sr, err := sgo.Do(path, string(data))
 	if err != nil {
 		return err
 	}
@@ -254,9 +254,9 @@ var (
 )
 
 func init() {
-	generators["db-oper"] = &gensql.Generator{}
-	generators["sql-orm"] = &gensqlorm.Generator{}
-	generators["struct"] = &genstruct.Generator{}
+	generators["db-oper"] = &gsql.Generator{}
+	generators["sql-orm"] = &gorm.Generator{}
+	generators["struct"] = &gstruct.Generator{}
 
 	for key, gen := range generators {
 		t := gen.ConfType()

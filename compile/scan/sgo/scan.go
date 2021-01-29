@@ -1,4 +1,4 @@
-package scango
+package sgo
 
 import (
 	"fmt"

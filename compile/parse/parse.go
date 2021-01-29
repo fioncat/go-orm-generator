@@ -5,8 +5,8 @@ import (
 
 	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/mediate"
-	"github.com/fioncat/go-gendb/compile/parse/parsesql"
-	"github.com/fioncat/go-gendb/compile/scan/scango"
+	"github.com/fioncat/go-gendb/compile/parse/psql"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
@@ -20,13 +20,13 @@ type Parser interface {
 	// code.
 	// Different go file types have different specific
 	// implementations.
-	Do(r *scango.Result) ([]mediate.Result, error)
+	Do(r *sgo.Result) ([]mediate.Result, error)
 }
 
 var parsers = make(map[string]Parser)
 
 func init() {
-	parsers["sql"] = &parsesql.Parser{}
+	parsers["sql"] = &psql.Parser{}
 }
 
 type StructResult struct {
@@ -51,7 +51,7 @@ func (sr *StructResult) GetStructs() []*coder.Struct { return sr.Structs }
 // an error will be returned. The parser will return an
 // error if an IO error or syntax error occurs during the
 // parsing process.
-func Do(scanResult *scango.Result) ([]mediate.Result, error) {
+func Do(scanResult *sgo.Result) ([]mediate.Result, error) {
 	parser := parsers[scanResult.Type]
 	if parser == nil {
 		return nil, fmt.Errorf(`unknown parser "%s"`, scanResult.Type)

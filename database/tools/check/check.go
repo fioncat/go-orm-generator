@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/fioncat/go-gendb/build"
-	"github.com/fioncat/go-gendb/compile/scan/scansql"
+	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/errors"
@@ -58,12 +58,12 @@ func buildTasks(path string, ms params, filter *set.Set) ([]*checkTask, error) {
 	if err != nil {
 		return nil, err
 	}
-	scanResult, err := scansql.Do(path, string(data))
+	scanResult, err := ssql.Do(path, string(data))
 	if err != nil {
 		return nil, err
 	}
 
-	var sqls []scansql.Statement
+	var sqls []ssql.Statement
 	for _, sql := range scanResult.Statements {
 		if filter != nil && filter.Contains(sql.Name) {
 			sqls = append(sqls, sql)
@@ -85,7 +85,7 @@ func buildTasks(path string, ms params, filter *set.Set) ([]*checkTask, error) {
 
 	tasks := make([]*checkTask, len(sqls))
 	for idx, sql := range sqls {
-		phs, err := scansql.DoPlaceholders(path,
+		phs, err := ssql.DoPlaceholders(path,
 			sql.LineNum, sql.Origin)
 		if err != nil {
 			return nil, err
