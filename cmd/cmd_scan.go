@@ -6,8 +6,10 @@ import (
 
 	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/cmd/help"
-	"github.com/fioncat/go-gendb/compile/scan/scango"
-	"github.com/fioncat/go-gendb/compile/scan/scansql"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
+	"github.com/fioncat/go-gendb/compile/scan/smock"
+	"github.com/fioncat/go-gendb/compile/scan/ssql"
+	"github.com/fioncat/go-gendb/compile/scan/stoml"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 	"github.com/fioncat/go-gendb/misc/term"
 )
@@ -36,14 +38,26 @@ var scanCmd = &cmdt.Command{
 		build.DEBUG = true
 		switch arg.Mode {
 		case "go":
-			var r *scango.Result
-			r, err = scango.Do(arg.Path, content)
+			var r *sgo.Result
+			r, err = sgo.Do(arg.Path, content)
 			if err == nil {
 				term.Show(r)
 			}
 		case "sql":
-			var r *scansql.Result
-			r, err = scansql.Do(arg.Path, content)
+			var r *ssql.Result
+			r, err = ssql.Do(arg.Path, content)
+			if err == nil {
+				term.Show(r)
+			}
+		case "toml":
+			var r *stoml.Result
+			r, err = stoml.Do(arg.Path, content)
+			if err == nil {
+				term.Show(r)
+			}
+		case "mock":
+			var r *smock.Result
+			r, err = smock.Do(arg.Path, content)
 			if err == nil {
 				term.Show(r)
 			}

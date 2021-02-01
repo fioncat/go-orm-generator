@@ -1,4 +1,4 @@
-package genstruct
+package gstruct
 
 import (
 	"sort"

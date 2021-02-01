@@ -1,4 +1,4 @@
-package parsesql
+package psql
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/mediate"
-	"github.com/fioncat/go-gendb/compile/scan/scango"
-	"github.com/fioncat/go-gendb/compile/scan/scansql"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
+	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/misc/errors"
@@ -213,7 +213,7 @@ type DynamicPart struct {
 }
 
 // sqlMap is used to index sql statement by name.
-type sqlMap map[string]scansql.Statement
+type sqlMap map[string]ssql.Statement
 
 // Parser is used to parse the scan results of sql type go files.
 // The prefix tags for these files are: "// +gendb sql"
@@ -221,7 +221,7 @@ type Parser struct {
 }
 
 // Do performs analysis.
-func (*Parser) Do(sr *scango.Result) ([]mediate.Result, error) {
+func (*Parser) Do(sr *sgo.Result) ([]mediate.Result, error) {
 	dir := filepath.Dir(sr.Path)
 	var results []mediate.Result
 
@@ -262,7 +262,7 @@ func (*Parser) Do(sr *scango.Result) ([]mediate.Result, error) {
 }
 
 // parse interface into OperResult
-func _interface(or *OperResult, sr *scango.Result, inter *scango.Interface, dir string) error {
+func _interface(or *OperResult, sr *sgo.Result, inter *sgo.Interface, dir string) error {
 	or.Name = inter.Name
 
 	// read sql file's path from tags.
@@ -283,7 +283,7 @@ func _interface(or *OperResult, sr *scango.Result, inter *scango.Interface, dir 
 	// Scan sql files
 	sqlM := make(sqlMap)
 	wp := workerpool.New(len(sqlPaths),
-		build.N_WORKERS, scanSqlWorker(sqlM, dir))
+		build.N_WORKERS, ssqlWorker(sqlM, dir))
 	wp.Start()
 	for _, path := range sqlPaths {
 		path := path
@@ -311,7 +311,7 @@ func _interface(or *OperResult, sr *scango.Result, inter *scango.Interface, dir 
 
 var mu sync.Mutex
 
-func scanSqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
+func ssqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
 	return func(task interface{}) error {
 		path := (task).(string)
 		path = filepath.Join(dir, path)
@@ -321,7 +321,7 @@ func scanSqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
 			return err
 		}
 
-		sqlResult, err := scansql.Do(path, string(data))
+		sqlResult, err := ssql.Do(path, string(data))
 		if err != nil {
 			return err
 		}
@@ -340,9 +340,9 @@ func scanSqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
 	}
 }
 
-func parseMethodWorker(interName string, or *OperResult, sr *scango.Result, sqlM sqlMap) workerpool.WorkFunc {
+func parseMethodWorker(interName string, or *OperResult, sr *sgo.Result, sqlM sqlMap) workerpool.WorkFunc {
 	return func(task interface{}) error {
-		method := task.(*scango.Method)
+		method := task.(*sgo.Method)
 		mr, err := _method(interName, method, sr, sqlM)
 		if err != nil {
 			return err
@@ -355,7 +355,7 @@ func parseMethodWorker(interName string, or *OperResult, sr *scango.Result, sqlM
 }
 
 // parse go interfaces' method into Method struct.
-func _method(interName string, method *scango.Method, sr *scango.Result, sm sqlMap) (*Method, error) {
+func _method(interName string, method *sgo.Method, sr *sgo.Result, sm sqlMap) (*Method, error) {
 	iter := iter.New(method.Tokens)
 	mr := new(Method)
 	err := _goMethod(iter, sr.Path, method.Line, mr)

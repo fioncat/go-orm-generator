@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fioncat/go-gendb/compile/parse/parsesql"
-	"github.com/fioncat/go-gendb/compile/scan/scansql"
+	"github.com/fioncat/go-gendb/compile/parse/psql"
+	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/misc/errors"
@@ -42,12 +42,12 @@ func Do(arg *Arg) error {
 		return err
 	}
 
-	scanResult, err := scansql.Do(arg.Path, string(data))
+	scanResult, err := ssql.Do(arg.Path, string(data))
 	if err != nil {
 		return err
 	}
 
-	var tar *scansql.Statement
+	var tar *ssql.Statement
 	for _, stat := range scanResult.Statements {
 		if stat.Name == arg.Method {
 			tar = &stat
@@ -64,7 +64,7 @@ func Do(arg *Arg) error {
 			` exec command donot support it.`, arg.Method)
 	}
 
-	method, err := parsesql.Statement(tar)
+	method, err := psql.Statement(tar)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func Do(arg *Arg) error {
 		return count(sqlStr, pres)
 	}
 
-	retStruct, err := parsesql.AutoRet(method)
+	retStruct, err := psql.AutoRet(method)
 	if err != nil {
 		return errors.Trace("parse return type", err)
 	}
@@ -152,7 +152,7 @@ type queryField struct {
 	goType string
 }
 
-func newFields(s *coder.Struct, qfs []parsesql.QueryField) []queryField {
+func newFields(s *coder.Struct, qfs []psql.QueryField) []queryField {
 	queryFields := make([]queryField, len(s.Fields))
 	for idx, f := range s.Fields {
 		qf := qfs[idx]

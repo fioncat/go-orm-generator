@@ -1,11 +1,11 @@
-package gensqlorm
+package gorm
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/fioncat/go-gendb/compile/mediate"
-	"github.com/fioncat/go-gendb/compile/parse/parsesql"
+	"github.com/fioncat/go-gendb/compile/parse/psql"
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
@@ -75,7 +75,7 @@ func (*Generator) Do(c *coder.Coder, r mediate.Result, confv interface{}) error 
 	c.AddImport("strings", "strings")
 	c.AddImport("update", conf.UpdatePath)
 
-	result := r.(*parsesql.OrmResult)
+	result := r.(*psql.OrmResult)
 
 	c.AddStruct(result.Struct)
 

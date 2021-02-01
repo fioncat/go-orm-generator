@@ -1,4 +1,4 @@
-package gensql
+package gsql
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/fioncat/go-gendb/compile/mediate"
-	"github.com/fioncat/go-gendb/compile/parse/parsesql"
+	"github.com/fioncat/go-gendb/compile/parse/psql"
 	"github.com/fioncat/go-gendb/generate/coder"
 )
 
@@ -51,7 +51,7 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 	}
 	c.AddImport("runner", conf.RunnerPath)
 
-	oper := result.(*parsesql.OperResult)
+	oper := result.(*psql.OperResult)
 	structName := "_" + oper.Name + "Impl"
 
 	c.P(0, "// ", structName, " implement of ", oper.Name)
@@ -127,7 +127,7 @@ func (*Generator) Do(c *coder.Coder, result mediate.Result, confv interface{}) e
 	return nil
 }
 
-func concat(c *coder.Coder, m parsesql.Method, oper *parsesql.OperResult, hasPre, hasRep bool) {
+func concat(c *coder.Coder, m psql.Method, oper *psql.OperResult, hasPre, hasRep bool) {
 	c.P(1, "// >>> concat start.")
 	preCap, repCap := calcphcap(m)
 	if hasPre {
@@ -144,17 +144,17 @@ func concat(c *coder.Coder, m parsesql.Method, oper *parsesql.OperResult, hasPre
 		c.P(1, "// concat: part ", idx)
 
 		switch part.Type {
-		case parsesql.DynamicTypeConst:
+		case psql.DynamicTypeConst:
 			c.P(1, "slice = append(slice, ", name, ")")
 			genph(1, c, part)
 
-		case parsesql.DynamicTypeIf:
+		case psql.DynamicTypeIf:
 			c.P(1, "if ", part.IfCond, " {")
 			c.P(2, "slice = append(slice, ", name, ")")
 			genph(2, c, part)
 			c.P(1, "}")
 
-		case parsesql.DynamicTypeFor:
+		case psql.DynamicTypeFor:
 			if part.ForJoin != "" {
 				if initLastidx {
 					c.P(1, "lastidx = len(", name, ") - ", len(part.ForJoin))
@@ -183,7 +183,7 @@ func concat(c *coder.Coder, m parsesql.Method, oper *parsesql.OperResult, hasPre
 	c.P(1, "// >>> concat done.")
 }
 
-func genfor(c *coder.Coder, part *parsesql.DynamicPart) {
+func genfor(c *coder.Coder, part *psql.DynamicPart) {
 	hasIdx := part.ForJoin != ""
 	hasEle := part.ForEle != ""
 
@@ -198,7 +198,7 @@ func genfor(c *coder.Coder, part *parsesql.DynamicPart) {
 	}
 }
 
-func genph(nTab int, c *coder.Coder, part *parsesql.DynamicPart) {
+func genph(nTab int, c *coder.Coder, part *psql.DynamicPart) {
 	if len(part.SQL.Prepares) > 0 {
 		c.P(nTab, "pvs = append(pvs, ", strings.Join(part.SQL.Prepares, ", "), ")")
 	}
@@ -207,7 +207,7 @@ func genph(nTab int, c *coder.Coder, part *parsesql.DynamicPart) {
 	}
 }
 
-func calcphcap(m parsesql.Method) (string, string) {
+func calcphcap(m psql.Method) (string, string) {
 	var (
 		preCnt = 0
 		repCnt = 0
@@ -217,13 +217,13 @@ func calcphcap(m parsesql.Method) (string, string) {
 	)
 	for _, part := range m.DynamicParts {
 		switch part.Type {
-		case parsesql.DynamicTypeConst:
+		case psql.DynamicTypeConst:
 			fallthrough
-		case parsesql.DynamicTypeIf:
+		case psql.DynamicTypeIf:
 			preCnt += len(part.SQL.Prepares)
 			repCnt += len(part.SQL.Replaces)
 
-		case parsesql.DynamicTypeFor:
+		case psql.DynamicTypeFor:
 
 			var sliceCap string
 			if len(part.SQL.Prepares) > 0 {
@@ -253,16 +253,16 @@ func calcphcap(m parsesql.Method) (string, string) {
 		calccap(repCnt, repSlice)
 }
 
-func calcsqlcap(m parsesql.Method) string {
+func calcsqlcap(m psql.Method) string {
 	cap := 0
 	var slices []string
 	for _, part := range m.DynamicParts {
 		switch part.Type {
-		case parsesql.DynamicTypeIf:
+		case psql.DynamicTypeIf:
 			fallthrough
-		case parsesql.DynamicTypeConst:
+		case psql.DynamicTypeConst:
 			cap += 1
-		case parsesql.DynamicTypeFor:
+		case psql.DynamicTypeFor:
 			slicecap := fmt.Sprintf("len(%s)", part.ForSlice)
 			slices = append(slices, slicecap)
 		}
@@ -284,7 +284,7 @@ func calccap(cap int, extracts []string) string {
 
 }
 
-func body(c *coder.Coder, m *parsesql.Method, runnerName, sqlName, rep, pre string, conf *Conf) {
+func body(c *coder.Coder, m *psql.Method, runnerName, sqlName, rep, pre string, conf *Conf) {
 	if m.IsExec {
 		if m.IsAffect() {
 			c.P(1, "return ", runnerName, ".ExecAffect(", conf.DbUse, ", ", sqlName, ", ", rep, ", ", pre, ")")

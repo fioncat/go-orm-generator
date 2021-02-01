@@ -6,7 +6,7 @@ import (
 
 	"github.com/fioncat/go-gendb/cmd/help"
 	"github.com/fioncat/go-gendb/compile/parse"
-	"github.com/fioncat/go-gendb/compile/scan/scango"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 	"github.com/fioncat/go-gendb/misc/errors"
@@ -57,7 +57,7 @@ var parseCmd = &cmdt.Command{
 			return err
 		}
 
-		scanResult, err := scango.Do(arg.Path, string(data))
+		scanResult, err := sgo.Do(arg.Path, string(data))
 		if err != nil {
 			return err
 		}

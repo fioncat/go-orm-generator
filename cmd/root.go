@@ -24,6 +24,7 @@ func init() {
 	cmds["clean"] = cleanCmd
 	cmds["check"] = checkCmd
 	cmds["exec"] = execCmd
+	cmds["mock"] = mockCmd
 }
 
 func getCmd(name string) *cmdt.Command {

@@ -110,6 +110,35 @@ func (s *Session) Exec(sql string, vs ...interface{}) (int64, error) {
 	return res.RowsAffected()
 }
 
+// RunBatch uses a transaction to execute a set of SQL
+// statements, and they are either all executed or none
+// of them are executed (if one of them produces an error,
+// it will be rolled back).
+func (s *Session) RunBatch(sqls []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return errors.Trace("begin tx", err)
+	}
+
+	for _, sql := range sqls {
+		_, err = tx.Exec(sql)
+		if err != nil {
+			_err := tx.Rollback()
+			if _err != nil {
+				fmt.Printf("Rollback failed: %v\n", _err)
+			}
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Trace("commit tx", err)
+	}
+
+	return nil
+}
+
 // dbOper represents internal database operations, and
 // different types of databases have different implementations.
 type dbOper interface {

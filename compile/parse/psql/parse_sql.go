@@ -1,10 +1,10 @@
-package parsesql
+package psql
 
 import (
 	"strings"
 
-	"github.com/fioncat/go-gendb/compile/scan/scango"
-	"github.com/fioncat/go-gendb/compile/scan/scansql"
+	"github.com/fioncat/go-gendb/compile/scan/sgo"
+	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/iter"
@@ -14,14 +14,14 @@ import (
 // Method data does not contain data required for code
 // generation. This function is generally used for operations
 // on sql statements (not involving code generation).
-func Statement(stat *scansql.Statement) (*Method, error) {
+func Statement(stat *ssql.Statement) (*Method, error) {
 	if len(stat.Tokens) == 0 {
 		return nil, errors.NewComp(stat.Path, stat.LineNum, "empty sql")
 	}
-	sm := new(scango.Method)
+	sm := new(sgo.Method)
 	m := new(Method)
 	if token.SQL_SELECT.Match(stat.Tokens[0]) {
-		sm.Flag.Tags = []scango.Tag{
+		sm.Flag.Tags = []sgo.Tag{
 			{Args: []string{"auto-ret"}},
 		}
 	} else {
@@ -42,11 +42,11 @@ func Statement(stat *scansql.Statement) (*Method, error) {
 // TODO: At present, we do not optimize the analysis of subqueries.
 // The inline table of the subquery will be returned as a normal
 // table. This may cause ambiguity, which needs to be optimized later.
-func _sql(goPath string, sql scansql.Statement, method *Method, sm *scango.Method) error {
+func _sql(goPath string, sql ssql.Statement, method *Method, sm *sgo.Method) error {
 
 	var err error
 	if !sql.IsDynamic {
-		phs, err := scansql.DoPlaceholders(sql.Path, sql.LineNum, sql.Origin)
+		phs, err := ssql.DoPlaceholders(sql.Path, sql.LineNum, sql.Origin)
 		if err != nil {
 			return err
 		}
@@ -385,7 +385,7 @@ func _tables(iter *iter.Iter, m *Method, ef *errors.ParseErrorFactory) error {
 }
 
 func dynamic(path string, line int, sql string) ([]*DynamicPart, error) {
-	scanParts, err := scansql.DoDynamic(path, line, sql)
+	scanParts, err := ssql.DoDynamic(path, line, sql)
 	if err != nil {
 		return nil, err
 	}
@@ -402,14 +402,14 @@ func dynamic(path string, line int, sql string) ([]*DynamicPart, error) {
 		}
 
 		switch scanPart.Type {
-		case scansql.DynamicTypeConst:
+		case ssql.DynamicTypeConst:
 			part.Type = DynamicTypeConst
 
-		case scansql.DynamicTypeIf:
+		case ssql.DynamicTypeIf:
 			part.IfCond = scanPart.Cond
 			part.Type = DynamicTypeIf
 
-		case scansql.DynamicTypeFor:
+		case ssql.DynamicTypeFor:
 			part.Type = DynamicTypeFor
 			tmp := strings.Split(scanPart.Cond, ":")
 			switch len(tmp) {

@@ -91,6 +91,11 @@ func (iter *Iter) Reset() {
 	iter.idx = 0
 }
 
+// Len returns the length of the slice.
+func (iter *Iter) Len() int {
+	return iter.slen
+}
+
 // Previous returns the previous element of the current element.
 func (iter *Iter) Previous(v interface{}) int {
 	tar := reflect.ValueOf(v)
