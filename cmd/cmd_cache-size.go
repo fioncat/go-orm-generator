@@ -11,7 +11,6 @@ import (
 )
 
 type cacheArg struct {
-	Prefix string `flag:"prefix"`
 }
 
 var cacheSizeCmd = &cmdt.Command{
@@ -22,11 +21,9 @@ var cacheSizeCmd = &cmdt.Command{
 	Help:  help.CacheSize,
 
 	Action: func(p interface{}) error {
-		prefix := p.(*cacheArg).Prefix
-
 		var totalSize int64
 		var total int
-		err := store.WalkCache(prefix, func(path string, info os.FileInfo) error {
+		err := store.WalkCache(func(path string, info os.FileInfo) error {
 			totalSize += info.Size()
 			total += 1
 			return nil
