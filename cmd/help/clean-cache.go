@@ -1,11 +1,9 @@
 package help
 
-const CleanCacheUsage = `clean-cache [--prefix <prefix>]`
+const CleanCacheUsage = `clean-cache`
 
 const CleanCache = `
-Recursively delete locally cached data. If the "--prefix"
-flag is used, only the cached data beginning with the given
-prefix will be deleted.
+Recursively delete all locally cached data.
 
 Cached data is generally used to speed up other commands,
 and deleting them will not cause crashing effects.

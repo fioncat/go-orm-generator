@@ -26,7 +26,7 @@ func baseHome() string {
 		if err != nil {
 			log.Fatal("read home directory failed: %v", err)
 		}
-		basePath = filepath.Join(home, ".gogendb")
+		basePath = filepath.Join(home, ".go_gendb_store")
 
 		stat, err := os.Stat(basePath)
 		if err != nil {

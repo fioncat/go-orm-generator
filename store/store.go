@@ -8,10 +8,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fioncat/go-gendb/misc/errors"
 )
+
+const KEY_SEP = "."
+
+var PATH_SEP = string(filepath.Separator)
 
 // encode data to payload
 func encodePayload(data []byte, expire int64) []byte {
@@ -107,7 +112,11 @@ func Save(name string, v interface{}, ttl time.Duration) error {
 	}
 
 	payload := encodePayload(data, expire)
+
+	name = strings.ReplaceAll(name, KEY_SEP, PATH_SEP)
 	path := filepath.Join(baseHome(), name)
+
+	_ = os.MkdirAll(filepath.Dir(path), os.ModePerm)
 
 	return ioutil.WriteFile(path, payload, 0644)
 }
@@ -120,6 +129,7 @@ func Save(name string, v interface{}, ttl time.Duration) error {
 // "false, nil". If the object exists and the IO and deserialization
 // does not produce an error, it will return "true, nil".
 func Load(name string, v interface{}) (bool, error) {
+	name = strings.ReplaceAll(name, KEY_SEP, PATH_SEP)
 	path := filepath.Join(baseHome(), name)
 	_, err := os.Stat(path)
 	if err != nil {
@@ -162,6 +172,7 @@ func Load(name string, v interface{}) (bool, error) {
 
 // Remove delete object in the disk.
 func Remove(name string) error {
+	name = strings.ReplaceAll(name, KEY_SEP, PATH_SEP)
 	path := filepath.Join(baseHome(), name)
 	return os.Remove(path)
 }
