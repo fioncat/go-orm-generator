@@ -26,6 +26,7 @@ Connection Commands:
 Database Tools:
     check    Check the errors or warnings for sql.
     exec     Execute sql statement.
+    mock     A tool to mock data in a specified format.
 
 Debug Commands:
     scan    Perform lexical analysis on the file.

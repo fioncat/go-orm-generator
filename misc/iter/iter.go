@@ -91,6 +91,7 @@ func (iter *Iter) Reset() {
 	iter.idx = 0
 }
 
+// Len returns the length of the slice.
 func (iter *Iter) Len() int {
 	return iter.slen
 }

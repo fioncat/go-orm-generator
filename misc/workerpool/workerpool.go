@@ -2,8 +2,6 @@ package workerpool
 
 import (
 	"sync"
-
-	"github.com/fioncat/go-gendb/misc/log"
 )
 
 // WorkFunc represents the specific function type that
@@ -99,10 +97,10 @@ func New(nTask, nWorker int, workFunc WorkFunc) Pool {
 	return &pool{
 		taskCh:   make(chan interface{}, nWorker),
 		doneCh:   make(chan int, nWorker),
-		errCh:    make(chan error, 1),
+		errCh:    make(chan error, 5),
 		nWorker:  nWorker,
 		nTask:    nTask,
-		stopCh:   make(chan error, 1),
+		stopCh:   make(chan error, 5),
 		workFunc: workFunc,
 	}
 }
@@ -133,6 +131,7 @@ func (p *pool) Do(task interface{}) {
 
 func (p *pool) listen() {
 	cnt := 0
+	sentStop := false
 	for {
 		if p.isClosed {
 			return
@@ -141,27 +140,44 @@ func (p *pool) listen() {
 		case done := <-p.doneCh:
 			cnt += done
 			if cnt >= p.nTask {
-				p.stopCh <- nil
-				return
+				if !sentStop {
+					p.closeMu.RLock()
+					if !p.isClosed {
+						p.stopCh <- nil
+						sentStop = true
+					}
+					p.closeMu.RUnlock()
+				}
 			}
 
 		case err := <-p.errCh:
-			p.stopCh <- err
-			return
+			if !sentStop {
+				p.closeMu.RLock()
+				if !p.isClosed {
+					p.stopCh <- err
+					sentStop = true
+				}
+				p.closeMu.RUnlock()
+			}
 		}
 	}
 }
 
+func (p *pool) closeCh() {
+	p.closeMu.Lock()
+	defer p.closeMu.Unlock()
+	if p.isClosed {
+		return
+	}
+	close(p.errCh)
+	close(p.stopCh)
+	close(p.doneCh)
+	close(p.taskCh)
+	p.isClosed = true
+}
+
 func (p *pool) Wait() error {
-	defer func() {
-		p.closeMu.Lock()
-		close(p.errCh)
-		close(p.stopCh)
-		close(p.doneCh)
-		close(p.taskCh)
-		p.isClosed = true
-		p.closeMu.Unlock()
-	}()
+	defer p.closeCh()
 	for {
 		err := <-p.stopCh
 		return err
@@ -193,17 +209,13 @@ func (w *worker) start() {
 		err := w.work(task)
 		if err != nil {
 			// Work with error, try to notify pool.
-			// If the pool is already closed, log
-			// this error and return.
 			w.pool.closeMu.RLock()
-			defer w.pool.closeMu.RUnlock()
 			if w.pool.isClosed {
-				log.Errorf("unhandle error from worker: %v", err)
 				return
 			}
 			// notify error
 			w.errCh <- err
-			return
+			w.pool.closeMu.RUnlock()
 		}
 		w.pool.closeMu.RLock()
 		if w.pool.isClosed {

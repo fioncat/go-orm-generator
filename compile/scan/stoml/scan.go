@@ -5,17 +5,47 @@ import (
 	"strings"
 )
 
+// Result represents the result of scanning a toml file.
+// It includes multiple global options and multiple sections.
+// The toml scanned here only supports the most basic format:
+//
+//  [section]
+//    option1 = value1
+//    option2 = value2
+//    ...
+//
 type Result struct {
-	Options  []*Option  `json:"options"`
+	// Options are external and are global options
+	// without section.
+	Options []*Option `json:"options"`
+
+	// Sections represent all resolved sections. A
+	// section contains a name and multiple options.
 	Sections []*Section `json:"sections"`
 }
 
+// Section represents the named section of multiple
+// option combinations in the toml file. There can be
+// multiple such sections in the entire toml file.
+//
+// The section starts with the definition of "[section-name]"
+// and ends with the next section definition. All options in
+// the middle belong to this section.
 type Section struct {
-	Name    string    `json:"name"`
+	// Name of the section
+	Name string `json:"name"`
+
+	// Options stores all the options contained in
+	// the section.
 	Options []*Option `json:"options"`
-	Line    int       `json:"line"`
+
+	// Line is the number of lines in the section.
+	Line int `json:"line"`
 }
 
+// Option is a specific configuration item in the toml
+// configuration file, and its format is very simple:
+//   "key = value".
 type Option struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -29,6 +59,8 @@ const (
 	optionSep = "="
 )
 
+// Do scans the toml configuration file and returns the
+// data in the form of Result.
 func Do(path, content string) (*Result, error) {
 	lines := strings.Split(content, "\n")
 
