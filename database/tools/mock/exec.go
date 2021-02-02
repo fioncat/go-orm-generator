@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/database/conn"
 	"github.com/fioncat/go-gendb/database/rdb"
-	"github.com/fioncat/go-gendb/misc/workerpool"
+	"github.com/fioncat/go-gendb/misc/gpool"
 )
 
 const sqlFileHeader = `-- ------------------------------------------------------------
@@ -71,8 +72,7 @@ func writeFile(arg *Arg, epochs [][]string, connKey string) error {
 }
 
 func exec(mute bool, epochs [][]string, nWorker int) error {
-	wp := workerpool.New(len(epochs), nWorker, func(task interface{}) error {
-		idx := task.(int)
+	wp := gpool.New(context.TODO(), nWorker, len(epochs), func(idx int) error {
 		sqls := epochs[idx]
 		err := rdb.Get().RunBatch(sqls)
 		if err != nil {

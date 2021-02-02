@@ -1,6 +1,7 @@
 package psql
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -14,9 +15,9 @@ import (
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/misc/gpool"
 	"github.com/fioncat/go-gendb/misc/iter"
 	"github.com/fioncat/go-gendb/misc/set"
-	"github.com/fioncat/go-gendb/misc/workerpool"
 )
 
 // OperResult represents the result of the DB operation
@@ -262,7 +263,13 @@ func (*Parser) Do(sr *sgo.Result) ([]mediate.Result, error) {
 }
 
 // parse interface into OperResult
-func _interface(or *OperResult, sr *sgo.Result, inter *sgo.Interface, dir string) error {
+func _interface(
+	or *OperResult,
+	sr *sgo.Result,
+	inter *sgo.Interface,
+	dir string,
+) error {
+
 	or.Name = inter.Name
 
 	// read sql file's path from tags.
@@ -282,24 +289,24 @@ func _interface(or *OperResult, sr *sgo.Result, inter *sgo.Interface, dir string
 
 	// Scan sql files
 	sqlM := make(sqlMap)
-	wp := workerpool.New(len(sqlPaths),
-		build.N_WORKERS, ssqlWorker(sqlM, dir))
+	wp := gpool.New(context.TODO(),
+		build.N_WORKERS, len(sqlPaths), ssqlWorker)
 	wp.Start()
 	for _, path := range sqlPaths {
 		path := path
-		wp.Do(path)
+		wp.Do(path, sqlM, dir)
 	}
 	if err := wp.Wait(); err != nil {
 		return errors.Trace("read sql file", err)
 	}
 
 	// Parse methods
-	wp = workerpool.New(len(inter.Methods),
-		build.N_WORKERS, parseMethodWorker(inter.Name, or, sr, sqlM))
+	wp = gpool.New(context.TODO(), build.N_WORKERS,
+		len(inter.Methods), parseMethodWorker)
 	wp.Start()
 	for _, m := range inter.Methods {
 		m := m
-		wp.Do(&m)
+		wp.Do(&m, inter.Name, or, sr, sqlM)
 	}
 
 	if err := wp.Wait(); err != nil {
@@ -311,51 +318,58 @@ func _interface(or *OperResult, sr *sgo.Result, inter *sgo.Interface, dir string
 
 var mu sync.Mutex
 
-func ssqlWorker(sqlM sqlMap, dir string) workerpool.WorkFunc {
-	return func(task interface{}) error {
-		path := (task).(string)
-		path = filepath.Join(dir, path)
+func ssqlWorker(path string, sqlM sqlMap, dir string) error {
+	path = filepath.Join(dir, path)
 
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		sqlResult, err := ssql.Do(path, string(data))
-		if err != nil {
-			return err
-		}
-
-		for _, sql := range sqlResult.Statements {
-			if _, ok := sqlM[sql.Name]; ok {
-				return errors.NewComp(path, sql.LineNum,
-					`sql "%s" is duplcate`, sql.Name)
-			}
-			mu.Lock()
-			sqlM[sql.Name] = sql
-			mu.Unlock()
-		}
-
-		return nil
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
 	}
-}
 
-func parseMethodWorker(interName string, or *OperResult, sr *sgo.Result, sqlM sqlMap) workerpool.WorkFunc {
-	return func(task interface{}) error {
-		method := task.(*sgo.Method)
-		mr, err := _method(interName, method, sr, sqlM)
-		if err != nil {
-			return err
+	sqlResult, err := ssql.Do(path, string(data))
+	if err != nil {
+		return err
+	}
+
+	for _, sql := range sqlResult.Statements {
+		if _, ok := sqlM[sql.Name]; ok {
+			return errors.NewComp(path, sql.LineNum,
+				`sql "%s" is duplcate`, sql.Name)
 		}
 		mu.Lock()
-		or.Methods = append(or.Methods, *mr)
+		sqlM[sql.Name] = sql
 		mu.Unlock()
-		return nil
 	}
+
+	return nil
+}
+
+func parseMethodWorker(
+	method *sgo.Method,
+	interName string,
+	or *OperResult,
+	sr *sgo.Result,
+	sqlM sqlMap,
+) error {
+
+	mr, err := _method(interName, method, sr, sqlM)
+	if err != nil {
+		return err
+	}
+	mu.Lock()
+	or.Methods = append(or.Methods, *mr)
+	mu.Unlock()
+	return nil
 }
 
 // parse go interfaces' method into Method struct.
-func _method(interName string, method *sgo.Method, sr *sgo.Result, sm sqlMap) (*Method, error) {
+func _method(
+	interName string,
+	method *sgo.Method,
+	sr *sgo.Result,
+	sm sqlMap,
+) (*Method, error) {
+
 	iter := iter.New(method.Tokens)
 	mr := new(Method)
 	err := _goMethod(iter, sr.Path, method.Line, mr)
@@ -406,7 +420,13 @@ func _method(interName string, method *sgo.Method, sr *sgo.Result, sm sqlMap) (*
 
 // parse go method tokens.
 // The format is: "<name>(<params>) (<ret-type>, error)"
-func _goMethod(iter *iter.Iter, path string, lineNum int, m *Method) error {
+func _goMethod(
+	iter *iter.Iter,
+	path string,
+	lineNum int,
+	m *Method,
+) error {
+
 	var tk token.Token
 
 	ef := errors.NewParseFactory(path, lineNum)

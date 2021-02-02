@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 	"github.com/fioncat/go-gendb/compile/parse/pmock"
 	"github.com/fioncat/go-gendb/compile/scan/smock"
 	"github.com/fioncat/go-gendb/database/rdb"
-	"github.com/fioncat/go-gendb/misc/workerpool"
+	"github.com/fioncat/go-gendb/misc/gpool"
 )
 
 // Arg is the command line parameter of the mock command.
@@ -102,12 +103,12 @@ func Do(arg *Arg) error {
 		go reporter.work()
 	}
 
-	wp := workerpool.New(result.Epoch, result.MockWorker,
-		mockWorker(result, epochs))
+	wp := gpool.New(context.TODO(), result.MockWorker,
+		result.Epoch, mockWorker)
 	wp.Start()
 
 	for idx := 0; idx < result.Epoch; idx++ {
-		wp.Do(idx)
+		wp.Do(idx, result, epochs)
 	}
 
 	err = wp.Wait()
@@ -187,17 +188,14 @@ func show(op string) {
 	fmt.Printf("%s: %"+totalLen+"d/%d\r", op, current, total)
 }
 
-func mockWorker(result *pmock.Result, epochs [][]string) workerpool.WorkFunc {
-	return func(task interface{}) error {
-		idx := task.(int)
-		sqls, err := epoch(result)
-		if err != nil {
-			return err
-		}
-		epochs[idx] = sqls
-		atomic.AddInt32(&current, 1)
-		return nil
+func mockWorker(idx int, result *pmock.Result, epochs [][]string) error {
+	sqls, err := epoch(result)
+	if err != nil {
+		return err
 	}
+	epochs[idx] = sqls
+	atomic.AddInt32(&current, 1)
+	return nil
 }
 
 func epoch(result *pmock.Result) ([]string, error) {
