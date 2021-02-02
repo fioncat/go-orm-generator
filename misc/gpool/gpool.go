@@ -8,12 +8,68 @@ import (
 	"sync/atomic"
 )
 
+// Pool is a container that stores one or more goroutines.
+// It uses a fixed number of goroutines to execute tasks
+// concurrently. Compared to creating a goroutine every
+// time a task is executed, Pool can avoid the problem of
+// goroutine inflation caused by too many tasks, and reduce
+// the overhead of creating and destorying goroutines.
+//
+// Pool has 3 working modes:
+//    1. Sequence Mode. Execute tasks in current goroutine
+//       sequentially, no concurrency is involved.
+//    2. Limited Mode. Execute a limited number of tasks
+//       concurrently, and when the number of executions
+//       reaches the provided value, stop the pool.
+//    3. Daemon Mode. Never stop, can execute unlimited
+//       tasks concurrently.
+//
+// The specific mode depends on the params passed in then
+// creating the Pool. Different modes may have different
+// underlying struct implementations.
 type Pool interface {
+
+	// Start initializes and starts the goroutine in the
+	// pool. Before calling Do, this function must be
+	// called, otherwise undefined behavior may occur.
+	// The reason for not putting the startup process in
+	// the factory function is to allow the outside to
+	// separate the pool creation and startup process.
 	Start()
+
+	// Do submit a task to Pool. In concurrent mode, Do
+	// will return immediately and tasks will be executed
+	// asynchronously, so the order in which Do is called
+	// is not the order in which tasks are actually executed.
+	// "args" is the parameter passed to the execution
+	// function. Its number and type must be strictly consistent
+	// with the action passed in when creating the Pool,
+	// otherwise it will cause panic.
 	Do(args ...interface{})
+
+	// Wait blocks until all tasks are completed. If a task
+	// occurs error, the blocking will be terminated.
+	// Generally only used for SequenceMode and LimitedMode.
+	// It will return errors generated during task execution.
+	// For DaemonMode, this function will cause permanent-blocking
+	// (unless an error occurs).
 	Wait() error
 }
 
+// New is the factory function for creating Pool. The
+// pool created may work in different modes, depending
+// on the worker and total:
+//   worker == 1 or total == 1: Pool works in SequenceMode
+//   worker > 1 and total == 0: Pool works in DaemonMode
+//   worker > 1 and total > 1 : Pool works in Limited Mode
+//
+// "ctx" is used to control the timeout of the Pool. If
+// "ctx" times out, the Pool will stop directly.
+//
+// "action" is the specific function that Pool needs to execute.
+// Its parameters can be defined arbitrarily, pay attention to
+// keep consistent with the parameters passed in Pool.Do. The
+// return value can be none or return an error.
 func New(ctx context.Context, worker, total int, action interface{}) Pool {
 	if worker == 1 || total == 1 {
 		return &sequence{action: newAction(action), ctx: ctx}
@@ -55,6 +111,7 @@ func callAction(action reflect.Value, args []interface{}) error {
 	}
 }
 
+// implementation of SequenceMode Pool
 type sequence struct {
 	status uint32
 	err    error
