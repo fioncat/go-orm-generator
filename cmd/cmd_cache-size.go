@@ -6,7 +6,7 @@ import (
 
 	"github.com/fioncat/go-gendb/cmd/help"
 	"github.com/fioncat/go-gendb/misc/cmdt"
-	"github.com/fioncat/go-gendb/misc/humansize"
+	"github.com/fioncat/go-gendb/misc/hsize"
 	"github.com/fioncat/go-gendb/store"
 )
 
@@ -35,7 +35,7 @@ var cacheSizeCmd = &cmdt.Command{
 		fmt.Printf("Total cached items: %d\n", total)
 
 		fmt.Printf("Size: %s (%d Bytes)\n",
-			humansize.Bytes(uint64(totalSize)), totalSize)
+			hsize.Bytes(uint64(totalSize)), totalSize)
 		return nil
 	},
 }

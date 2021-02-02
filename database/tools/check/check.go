@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,11 +15,11 @@ import (
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/misc/gpool"
 	"github.com/fioncat/go-gendb/misc/log"
 	"github.com/fioncat/go-gendb/misc/set"
 	"github.com/fioncat/go-gendb/misc/term"
 	"github.com/fioncat/go-gendb/misc/trace"
-	"github.com/fioncat/go-gendb/misc/workerpool"
 )
 
 // Arg stores the command line parameters of check.
@@ -172,12 +173,12 @@ func Do(arg *Arg) error {
 
 	tt.Start("scan")
 	workTasks := make([][]*checkTask, len(paths))
-	wp := workerpool.New(len(paths), build.N_WORKERS,
-		scanWorker(paths, ms, filter, workTasks))
+	wp := gpool.New(context.TODO(), build.N_WORKERS, len(paths),
+		scanWorker)
 	wp.Start()
 
 	for idx := range paths {
-		wp.Do(idx)
+		wp.Do(idx, paths, ms, filter, workTasks)
 	}
 
 	if err := wp.Wait(); err != nil {
@@ -196,11 +197,11 @@ func Do(arg *Arg) error {
 
 	tt.Start("check")
 	results := make([]*checkResult, len(tasks))
-	wp = workerpool.New(len(tasks), build.N_WORKERS,
-		checkWorker(results, tasks))
+	wp = gpool.New(context.TODO(), build.N_WORKERS, len(tasks),
+		checkWorker)
 	wp.Start()
 	for idx := range tasks {
-		wp.Do(idx)
+		wp.Do(idx, results, tasks)
 	}
 	if err := wp.Wait(); err != nil {
 		return errors.Trace("check", err)
@@ -249,35 +250,29 @@ func Do(arg *Arg) error {
 	return nil
 }
 
-func scanWorker(paths []string, ms params, f *set.Set, workTasks [][]*checkTask) workerpool.WorkFunc {
-	return func(v interface{}) error {
-		idx := v.(int)
-		path := paths[idx]
-		curTasks, err := buildTasks(path, ms, f)
-		if err != nil {
-			return err
-		}
-		workTasks[idx] = curTasks
-		return nil
+func scanWorker(idx int, paths []string, ms params, f *set.Set, workTasks [][]*checkTask) error {
+	path := paths[idx]
+	curTasks, err := buildTasks(path, ms, f)
+	if err != nil {
+		return err
 	}
+	workTasks[idx] = curTasks
+	return nil
 }
 
-func checkWorker(results []*checkResult, tasks []*checkTask) workerpool.WorkFunc {
-	return func(v interface{}) error {
-		idx := v.(int)
-		task := tasks[idx]
-		result, err := rdb.Get().Check(task.sql, task.prepares)
-		if err != nil {
-			return err
-		}
-
-		results[idx] = &checkResult{
-			path:   task.path,
-			name:   task.name,
-			result: result,
-		}
-		return nil
+func checkWorker(idx int, results []*checkResult, tasks []*checkTask) error {
+	task := tasks[idx]
+	result, err := rdb.Get().Check(task.sql, task.prepares)
+	if err != nil {
+		return err
 	}
+
+	results[idx] = &checkResult{
+		path:   task.path,
+		name:   task.name,
+		result: result,
+	}
+	return nil
 }
 
 func getPaths(arg *Arg) ([]string, error) {

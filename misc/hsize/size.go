@@ -1,4 +1,4 @@
-package humansize
+package hsize
 
 import (
 	"fmt"
