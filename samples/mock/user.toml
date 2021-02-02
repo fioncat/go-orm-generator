@@ -1,6 +1,6 @@
 exec_worker=20
-mock_worker=20
-epoch=200000
+mock_worker=1
+epoch=200000000
 
 [user]
 id:int   = {incr:100:1}

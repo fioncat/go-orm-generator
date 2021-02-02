@@ -103,6 +103,7 @@ func Do(arg *Arg) error {
 		go reporter.work()
 	}
 
+	start := time.Now()
 	wp := gpool.New(context.TODO(), result.MockWorker,
 		result.Epoch, mockWorker)
 	wp.Start()
@@ -120,11 +121,21 @@ func Do(arg *Arg) error {
 	}
 
 	if arg.Exec {
-		return exec(arg.Mute, epochs, sr.ExecWorker)
+		err := exec(arg.Mute, epochs, sr.ExecWorker)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("exec done, took: %v\n", time.Since(start))
+		return nil
 	}
 
 	if arg.File != "" {
-		return writeFile(arg, epochs, sr.Conn)
+		err := writeFile(arg, epochs, sr.Conn)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("write file done, tool: %v\n", time.Since(start))
+		return nil
 	}
 
 	bodys, _ := body(epochs)

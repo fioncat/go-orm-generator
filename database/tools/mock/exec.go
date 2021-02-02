@@ -67,7 +67,6 @@ func writeFile(arg *Arg, epochs [][]string, connKey string) error {
 		return err
 	}
 
-	fmt.Println("done!")
 	return nil
 }
 
