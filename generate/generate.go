@@ -1,7 +1,6 @@
 package generate
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/mediate"
 	"github.com/fioncat/go-gendb/compile/parse"
 	"github.com/fioncat/go-gendb/compile/scan/sgo"
@@ -23,9 +21,9 @@ import (
 	"github.com/fioncat/go-gendb/generate/internal/gsql"
 	"github.com/fioncat/go-gendb/generate/internal/gstruct"
 	"github.com/fioncat/go-gendb/misc/errors"
-	"github.com/fioncat/go-gendb/misc/gpool"
 	"github.com/fioncat/go-gendb/misc/log"
 	"github.com/fioncat/go-gendb/misc/trace"
+	"github.com/fioncat/go-gendb/misc/wpool"
 )
 
 // Each generator must implement the four methods of this
@@ -201,11 +199,10 @@ func batch(root string, confData []byte) error {
 	}
 
 	tt.Start("generate")
-	wp := gpool.New(context.TODO(), build.N_WORKERS,
-		len(paths), genWorker)
-	wp.Start()
+	wp := wpool.New().Total(len(paths))
+	wp.Action(genWorker)
 	for _, path := range paths {
-		wp.Do(path, confData)
+		wp.SubmitArgs(path, confData)
 	}
 
 	if err := wp.Wait(); err != nil {

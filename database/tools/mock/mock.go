@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 	"github.com/fioncat/go-gendb/compile/parse/pmock"
 	"github.com/fioncat/go-gendb/compile/scan/smock"
 	"github.com/fioncat/go-gendb/database/rdb"
-	"github.com/fioncat/go-gendb/misc/gpool"
+	"github.com/fioncat/go-gendb/misc/wpool"
 )
 
 // Arg is the command line parameter of the mock command.
@@ -104,12 +103,11 @@ func Do(arg *Arg) error {
 	}
 
 	start := time.Now()
-	wp := gpool.New(context.TODO(), result.MockWorker,
-		result.Epoch, mockWorker)
-	wp.Start()
+	wp := wpool.New().Total(result.Epoch).
+		Action(mockWorker).Worker(result.MockWorker)
 
 	for idx := 0; idx < result.Epoch; idx++ {
-		wp.Do(idx, result, epochs)
+		wp.SubmitArgs(idx, result, epochs)
 	}
 
 	err = wp.Wait()

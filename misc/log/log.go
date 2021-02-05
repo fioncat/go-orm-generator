@@ -57,6 +57,8 @@ func getLevel(level string) string {
 		return term.Info(level)
 	case "ERR":
 		return term.Red(level)
+	case "WAR":
+		return term.Warn(level)
 	}
 	return level
 }
@@ -118,6 +120,15 @@ func Errorf(layer string, vs ...interface{}) {
 	}
 	msg := fmt.Sprintf(layer, vs...)
 	writeLog("ERR", msg)
+}
+
+func Warnf(layer string, vs ...interface{}) {
+	if !logEnable {
+		return
+	}
+
+	msg := fmt.Sprintf(layer, vs...)
+	writeLog("WAR", msg)
 }
 
 // Fatal output log and exit program with 1.
