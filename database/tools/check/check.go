@@ -1,7 +1,6 @@
 package check
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,16 +9,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/errors"
-	"github.com/fioncat/go-gendb/misc/gpool"
 	"github.com/fioncat/go-gendb/misc/log"
 	"github.com/fioncat/go-gendb/misc/set"
 	"github.com/fioncat/go-gendb/misc/term"
 	"github.com/fioncat/go-gendb/misc/trace"
+	"github.com/fioncat/go-gendb/misc/wpool"
 )
 
 // Arg stores the command line parameters of check.
@@ -173,12 +171,9 @@ func Do(arg *Arg) error {
 
 	tt.Start("scan")
 	workTasks := make([][]*checkTask, len(paths))
-	wp := gpool.New(context.TODO(), build.N_WORKERS, len(paths),
-		scanWorker)
-	wp.Start()
-
+	wp := wpool.New().Total(len(paths)).Action(scanWorker)
 	for idx := range paths {
-		wp.Do(idx, paths, ms, filter, workTasks)
+		wp.SubmitArgs(idx, paths, ms, filter, workTasks)
 	}
 
 	if err := wp.Wait(); err != nil {
@@ -197,11 +192,9 @@ func Do(arg *Arg) error {
 
 	tt.Start("check")
 	results := make([]*checkResult, len(tasks))
-	wp = gpool.New(context.TODO(), build.N_WORKERS, len(tasks),
-		checkWorker)
-	wp.Start()
+	wp = wpool.New().Total(len(tasks)).Action(checkWorker)
 	for idx := range tasks {
-		wp.Do(idx, results, tasks)
+		wp.SubmitArgs(idx, results, tasks)
 	}
 	if err := wp.Wait(); err != nil {
 		return errors.Trace("check", err)

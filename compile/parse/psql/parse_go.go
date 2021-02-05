@@ -1,23 +1,21 @@
 package psql
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/fioncat/go-gendb/build"
 	"github.com/fioncat/go-gendb/compile/mediate"
 	"github.com/fioncat/go-gendb/compile/scan/sgo"
 	"github.com/fioncat/go-gendb/compile/scan/ssql"
 	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/generate/coder"
 	"github.com/fioncat/go-gendb/misc/errors"
-	"github.com/fioncat/go-gendb/misc/gpool"
 	"github.com/fioncat/go-gendb/misc/iter"
 	"github.com/fioncat/go-gendb/misc/set"
+	"github.com/fioncat/go-gendb/misc/wpool"
 )
 
 // OperResult represents the result of the DB operation
@@ -289,24 +287,22 @@ func _interface(
 
 	// Scan sql files
 	sqlM := make(sqlMap)
-	wp := gpool.New(context.TODO(),
-		build.N_WORKERS, len(sqlPaths), ssqlWorker)
-	wp.Start()
+	wp := wpool.New().Total(len(sqlPaths))
+	wp.Action(ssqlWorker)
 	for _, path := range sqlPaths {
 		path := path
-		wp.Do(path, sqlM, dir)
+		wp.SubmitArgs(path, sqlM, dir)
 	}
 	if err := wp.Wait(); err != nil {
 		return errors.Trace("read sql file", err)
 	}
 
 	// Parse methods
-	wp = gpool.New(context.TODO(), build.N_WORKERS,
-		len(inter.Methods), parseMethodWorker)
-	wp.Start()
+	wp = wpool.New().Total(len(inter.Methods))
+	wp.Action(parseMethodWorker)
 	for _, m := range inter.Methods {
 		m := m
-		wp.Do(&m, inter.Name, or, sr, sqlM)
+		wp.SubmitArgs(&m, inter.Name, or, sr, sqlM)
 	}
 
 	if err := wp.Wait(); err != nil {
