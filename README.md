@@ -1,49 +1,53 @@
 # go-gendb
 
-go-gendb是一个Go的数据库代码自动生成工具。它的基本思想是将数据库逻辑和代码抽离，分开维护，由go-gendb本身将二者关联起来生成代码。
+[中文README](README_zh.md)
 
-除此之外，go-gendb还包含了一些操作数据库的简易工具。
+## Introduction
 
-## 安装
+go-gendb is a tool to generate Go database code. Its basic idea is to separate the database logic (such as SQL statement) and code. go-gendb will link them together.
 
-[release页面](releases)已经有编译好的二进制程序了，但是更加建议直接在本地构建安装：
+In addition, go-gendb also contains a tool chan for operating the database.
 
-```text
-$ GO111MODULE=on go install github.com/fioncat/go-gendb
-```
+## Install
 
-在`go1.16`及以后的版本，可以使用以下命令来指定版本（`"latest"`为最新版本）：
+There are already compiled binary progams on [release page](https://github.com/fioncat/go-gendb/releases) which can be downloaded and used directly. But it is more recommended to build and install locally:
 
 ```text
-$ go install github.com/fioncat/go-gendb@version
+GO111MODULE=on go install github.com/fioncat/go-gendb
 ```
 
-如果你的go不支持`go module`，可以`clone`项目到本地让后执行`go install`。
+In `go 1.16` and later, you can use the following command to specify the version:
 
-## 版本
+```text
+go install github.com/fioncat/go-gendb@version
+```
+
+## Version
 
 ### v0.0.x
 
-早期版本，不建议使用。
+Early version, you won't use it.
+
+There is no documentation, the code is messy, maybe only I can use it.
 
 ### v0.1.x
 
-第一个可以使用的版本，但是bug比较多，不建议在生产环境中使用。
+The first version that can be used, but there are many bugs, it is not recommended to use it in a production environment.
 
-- 支持动态sql语句
-- 增加了多个工具链
-- 代码重构，优化性能
+- Support dynamic sql statement.
+- Added tool chain.
+- Code refactoring to optimize performance.
 
 ### v0.2.x
 
-该版本的目的主要是让go-gendb可用，目前还在测试中。该版本和`v0.1.x`不兼容。
+The purpose of this version is to make go-gendb available, and it is still under testing. This version is not compatible with `v0.1.x`.
 
-- 优化储存方式，并发，加快代码生成的速度。
-- 修复bug
+- Optimize storage methods, concurrency, and speed up code generation.
+- Fix bugs.
 
-## 使用
+## Usage
 
-TODO: 文档暂缺
+TODO: Doc is missing.	
 
-使用范例可以参见[samples](samples)。
+For usage examples, please refer to [samples](samples).
 
