@@ -203,7 +203,7 @@ func genph(nTab int, c *coder.Coder, part *psql.DynamicPart) {
 		c.P(nTab, "pvs = append(pvs, ", strings.Join(part.SQL.Prepares, ", "), ")")
 	}
 	if len(part.SQL.Replaces) > 0 {
-		c.P(nTab, "pvs = append(rvs, ", strings.Join(part.SQL.Replaces, ", "), ")")
+		c.P(nTab, "rvs = append(rvs, ", strings.Join(part.SQL.Replaces, ", "), ")")
 	}
 }
 
