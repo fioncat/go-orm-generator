@@ -31,6 +31,14 @@ func colorString(s string, cno int32) string {
 	return fmt.Sprintf("\033[%d;1m%s\033[0m", cno, s)
 }
 
+func UnderLine(s string) string {
+	return fmt.Sprintf("\033[0;4m%s\033[0m", s)
+}
+
+func Mark(s string) string {
+	return fmt.Sprintf("\033[31;4m%s\033[0m", s)
+}
+
 // Warn returns string with 'yellow' color.
 func Warn(s string) string {
 	return colorString(s, colorsMap["yellow"])
