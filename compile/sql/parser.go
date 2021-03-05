@@ -87,6 +87,84 @@ var kwsLower = func() []string {
 	return kws
 }()
 
+type sqlVar struct {
+	sqlEs []token.Element
+	phEs  []token.Element
+}
+
+var globalVars = make(map[string]*sqlVar)
+
+func parseNameFromTag(t string, tag *base.Tag) (string, error) {
+	if tag.Name != t {
+		return "", nil
+	}
+	if len(tag.Options) == 0 {
+		return "", fmt.Errorf("missing name for %s", t)
+	}
+
+	nameOpt := tag.Options[0]
+	if nameOpt.Key != "" && nameOpt.Key != "name" {
+		return "", fmt.Errorf(`The 1st option `+
+			`must be "name", found: "%s"`, nameOpt.Key)
+	}
+	if nameOpt.Value == "" {
+		return "", fmt.Errorf("name is empty")
+	}
+
+	return nameOpt.Value, nil
+}
+
+type _varParser struct {
+	name string
+	sqls *token.Scanner
+	phs  *token.Scanner
+}
+
+func acceptVar(tag *base.Tag) (base.ScanParser, error) {
+	name, err := parseNameFromTag("var", tag)
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, nil
+	}
+
+	p := new(_varParser)
+	p.name = name
+	p.sqls = token.EmptyScannerIC(sqlTokens)
+	p.phs = token.EmptyScanner(phTokens)
+
+	if _, ok := globalVars[name]; ok {
+		return nil, fmt.Errorf(`var "%s" is duplicate`, name)
+	}
+
+	return p, nil
+}
+
+func (p *_varParser) Next(idx int, line string, _ []*base.Tag) (
+	bool, error,
+) {
+	p.sqls.AddLine(idx, line)
+	p.phs.AddLine(idx, line)
+	return true, nil
+}
+
+func (p *_varParser) Get() interface{} {
+	sqlEs := p.sqls.Gets()
+	phEs := p.phs.Gets()
+	if len(sqlEs) == 0 || len(phEs) == 0 {
+		return p.phs.EarlyEndL("sql")
+	}
+
+	sv := &sqlVar{
+		sqlEs: sqlEs,
+		phEs:  phEs,
+	}
+	globalVars[p.name] = sv
+
+	return nil
+}
+
 type _sqlParser struct {
 	inter, name string
 
@@ -97,20 +175,15 @@ type _sqlParser struct {
 }
 
 func acceptSql(tag *base.Tag) (base.ScanParser, error) {
-	if tag.Name != "method" {
+	name, err := parseNameFromTag("method", tag)
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
 		return nil, nil
-	}
-	if len(tag.Options) == 0 {
-		return nil, fmt.Errorf("missing name for method")
-	}
-	nameOpt := tag.Options[0]
-	if nameOpt.Key != "" && nameOpt.Key != "name" {
-		return nil, fmt.Errorf(`The 1st option `+
-			`must be "name", found: "%s"`, nameOpt.Key)
 	}
 	p := new(_sqlParser)
 
-	name := nameOpt.Value
 	tmp := strings.Split(name, ".")
 	switch len(tmp) {
 	case 1:
@@ -151,12 +224,79 @@ func (p *_sqlParser) Next(idx int, line string, _ []*base.Tag) (
 }
 
 func (p *_sqlParser) Get() interface{} {
-	m, err := parseMethod(p.sqls, p.phs,
+	sqls, err := parseVars(p.sqls, true)
+	if err != nil {
+		return err
+	}
+	phs, err := parseVars(p.phs, false)
+	if err != nil {
+		return err
+	}
+	m, err := parseMethod(sqls, phs,
 		p.name, p.inter, p.dyn)
 	if err != nil {
 		return err
 	}
 	return m
+}
+
+func parseVars(s *token.Scanner, isSqls bool) (*token.Scanner, error) {
+	var e token.Element
+	var ok bool
+	var bucket []token.Element
+	var hasVar bool
+	for {
+		ok = s.Next(&e)
+		if !ok {
+			break
+		}
+		if e.Token != _varStart {
+			bucket = append(bucket, e)
+			continue
+		}
+		hasVar = true
+
+		ok = s.Next(&e)
+		if !ok {
+			return nil, s.EarlyEndL("LBRACE")
+		}
+		if e.Token != token.LBRACE {
+			return nil, e.NotMatchL("LBRACE")
+		}
+
+		var nameBucket []string
+		for {
+			ok = s.Next(&e)
+			if !ok {
+				return nil, s.EarlyEndL("RBRACE")
+			}
+			if e.Token == token.RBRACE {
+				break
+			}
+			nameBucket = append(nameBucket, e.Get())
+		}
+		if len(nameBucket) == 0 {
+			return nil, e.FmtErrL("name is empty")
+		}
+		name := strings.Join(nameBucket, "")
+		sqlVar := globalVars[name]
+		if sqlVar == nil {
+			return nil, e.FmtErrL(`can not find var "%s"`, name)
+		}
+		var es []token.Element
+		if isSqls {
+			es = sqlVar.sqlEs
+		} else {
+			es = sqlVar.phEs
+		}
+
+		bucket = append(bucket, es...)
+	}
+	if !hasVar {
+		s.Reset()
+		return s, nil
+	}
+	return token.CopyScanner(s, bucket), nil
 }
 
 func parseMethod(sqls, phs *token.Scanner, name, inter string, dyn bool) (

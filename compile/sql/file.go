@@ -21,6 +21,7 @@ type acceptAction func(tag *base.Tag) (base.ScanParser, error)
 
 var acceptActions = []acceptAction{
 	acceptSql,
+	acceptVar,
 }
 
 func ReadFile(path string) (*File, error) {
@@ -73,6 +74,9 @@ func readLines(path string, lines []string) (*File, error) {
 			if err != nil {
 				return nil, err
 			}
+			if p != nil {
+				break
+			}
 		}
 		if p == nil {
 			err = fmt.Errorf(`unknown tag type "%s"`, tag.Name)
@@ -85,6 +89,9 @@ func readLines(path string, lines []string) (*File, error) {
 		}
 
 		v := p.Get()
+		if v == nil {
+			continue
+		}
 		switch v.(type) {
 		case error:
 			return nil, v.(error)

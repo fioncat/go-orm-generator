@@ -58,7 +58,7 @@ func ScanLines(prefix string, p ScanParser, lines []string, idx *int) error {
 	}
 	if !found {
 		return errors.TraceFmt(start,
-			"can not find close statement")
+			"can not find close tag")
 	}
 	*idx += 1
 
