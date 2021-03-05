@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/misc/log"
 )
 
 const commPrefix = "--"
@@ -42,6 +44,7 @@ func ReadLines(path string, lines []string) (*File, error) {
 }
 
 func readLines(path string, lines []string) (*File, error) {
+	start := time.Now()
 	file := new(File)
 	file.Path = path
 
@@ -60,7 +63,7 @@ func readLines(path string, lines []string) (*File, error) {
 
 	for idx < len(lines) {
 		line := lines[idx]
-		tag, err := base.ParseTag(commPrefix, line)
+		tag, err := base.ParseTag(idx, commPrefix, line)
 		if err != nil {
 			return nil, err
 		}
@@ -109,6 +112,9 @@ func readLines(path string, lines []string) (*File, error) {
 			flatState(dp.State)
 		}
 	}
+	log.Infof("[c] compile sql file '%s' "+
+		"success, found %d method(s), took: %v",
+		path, len(file.Methods), time.Since(start))
 
 	return file, nil
 }

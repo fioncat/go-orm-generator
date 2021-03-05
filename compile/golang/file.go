@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/misc/log"
 )
 
 const commentPrefix = "//"
@@ -47,6 +49,7 @@ func ReadLines(path string, lines []string) (*File, error) {
 }
 
 func readLines(path string, lines []string) (*File, error) {
+	start := time.Now()
 	file := new(File)
 	file.Path = path
 
@@ -87,7 +90,7 @@ func readLines(path string, lines []string) (*File, error) {
 			continue
 		}
 		if strings.HasPrefix(line, commentPrefix) {
-			tag, err := base.ParseTag(commentPrefix, line)
+			tag, err := base.ParseTag(idx, commentPrefix, line)
 			if err != nil {
 				return nil, errors.Trace(idx+1, err)
 			}
@@ -116,7 +119,7 @@ func readLines(path string, lines []string) (*File, error) {
 			file.Imports = append(file.Imports, imps...)
 			continue
 		}
-		p, err := acceptInterface(line, tags)
+		p, err := acceptInterface(idx, line, tags)
 		if err != nil {
 			return nil, errors.Trace(idx+1, err)
 		}
@@ -134,6 +137,9 @@ func readLines(path string, lines []string) (*File, error) {
 		inter := p.Get().(*Interface)
 		file.Interfaces = append(file.Interfaces, inter)
 	}
+	log.Infof("[c] compile golang file '%s' "+
+		"success, found %d inters, took: %v",
+		path, len(file.Interfaces), time.Since(start))
 
 	return file, nil
 }

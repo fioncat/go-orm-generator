@@ -166,6 +166,8 @@ func (p *_varParser) Get() interface{} {
 }
 
 type _sqlParser struct {
+	line int
+
 	inter, name string
 
 	sqls *token.Scanner
@@ -183,6 +185,7 @@ func acceptSql(tag *base.Tag) (base.ScanParser, error) {
 		return nil, nil
 	}
 	p := new(_sqlParser)
+	p.line = tag.Line
 
 	tmp := strings.Split(name, ".")
 	switch len(tmp) {
@@ -237,6 +240,7 @@ func (p *_sqlParser) Get() interface{} {
 	if err != nil {
 		return err
 	}
+	m.line = p.line
 	return m
 }
 

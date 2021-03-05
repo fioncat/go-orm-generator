@@ -171,7 +171,9 @@ type _interfaceParser struct {
 	inter *Interface
 }
 
-func acceptInterface(line string, tags []*base.Tag) (base.ScanParser, error) {
+func acceptInterface(idx int, line string, tags []*base.Tag) (
+	base.ScanParser, error,
+) {
 	if len(tags) == 0 {
 		return nil, nil
 	}
@@ -194,6 +196,7 @@ func acceptInterface(line string, tags []*base.Tag) (base.ScanParser, error) {
 	p.inter = new(Interface)
 	p.inter.Name = es[1].Get()
 	p.inter.Tag = tags[0]
+	p.inter.line = idx + 1
 
 	if es[2].Token != _interface {
 		return nil, nil
@@ -206,14 +209,15 @@ func acceptInterface(line string, tags []*base.Tag) (base.ScanParser, error) {
 	return p, nil
 }
 
-func (p *_interfaceParser) Next(_ int, line string, tags []*base.Tag) (bool, error) {
+func (p *_interfaceParser) Next(idx int, line string, tags []*base.Tag) (bool, error) {
 	if token.RBRACE.Equal(line) {
 		return false, nil
 	}
 
 	s := token.NewScanner(line, _methodTokens)
 
-	var method Method
+	method := new(Method)
+	method.line = idx + 1
 	method.Def = line
 	method.Tags = tags
 

@@ -1,6 +1,14 @@
 package sql
 
+import (
+	"fmt"
+
+	"github.com/fioncat/go-gendb/misc/errors"
+)
+
 type Method struct {
+	line int
+
 	Inter string
 	Name  string
 
@@ -12,6 +20,11 @@ type Method struct {
 	Dps []*DynamicPart
 
 	Fields []*QueryField
+}
+
+func (m *Method) FmtError(a string, b ...interface{}) error {
+	err := fmt.Errorf(a, b...)
+	return errors.Trace(m.line, err)
 }
 
 // dynamic type enum

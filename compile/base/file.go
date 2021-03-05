@@ -18,7 +18,7 @@ func Accept(lines []string, prefix string, next NextAction) (int, error) {
 	var idx int
 	for ; idx < len(lines); idx++ {
 		line := lines[idx]
-		tag, err := ParseTag(prefix, line)
+		tag, err := ParseTag(idx, prefix, line)
 		if err != nil {
 			return 0, err
 		}

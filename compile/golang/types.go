@@ -1,6 +1,11 @@
 package golang
 
-import "github.com/fioncat/go-gendb/compile/base"
+import (
+	"fmt"
+
+	"github.com/fioncat/go-gendb/compile/base"
+	"github.com/fioncat/go-gendb/misc/errors"
+)
 
 type Import struct {
 	Name string
@@ -8,12 +13,21 @@ type Import struct {
 }
 
 type Interface struct {
+	line int
+
 	Name    string
 	Tag     *base.Tag
-	Methods []Method
+	Methods []*Method
+}
+
+func (i *Interface) FmtError(a string, b ...interface{}) error {
+	err := fmt.Errorf(a, b...)
+	return errors.Trace(i.line, err)
 }
 
 type Method struct {
+	line int
+
 	Tags []*base.Tag
 
 	Name    string
@@ -26,4 +40,9 @@ type Method struct {
 	RetType string
 
 	Def string
+}
+
+func (m *Method) FmtError(a string, b ...interface{}) error {
+	err := fmt.Errorf(a, b...)
+	return errors.Trace(m.line, err)
 }

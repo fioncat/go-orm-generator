@@ -1,7 +1,7 @@
 -- +gen:sql v=0.3
 
 -- +gen:method UserOper.FindById dyn=false
-SELECT id, name, age
+SELECT id, name, age,
 FROM user
 WHERE id=${id}
 -- +gen:end

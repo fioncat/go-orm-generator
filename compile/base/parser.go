@@ -28,7 +28,7 @@ func ScanLines(prefix string, p ScanParser, lines []string, idx *int) error {
 			*idx += 1
 			continue
 		}
-		tag, err := ParseTag(prefix, line)
+		tag, err := ParseTag(*idx, prefix, line)
 		if err != nil {
 			return err
 		}

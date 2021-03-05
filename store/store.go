@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -149,7 +150,7 @@ func Load(name string, v interface{}) (bool, error) {
 
 	data, ok := decodePayload(payload)
 	if !ok {
-		return false, errors.New(
+		return false, fmt.Errorf(
 			"%s: data bad format", path)
 	}
 	if len(data) == 0 {

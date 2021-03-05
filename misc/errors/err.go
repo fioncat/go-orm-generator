@@ -35,6 +35,10 @@ func TraceFmt(prefix interface{}, a string, b ...interface{}) error {
 }
 
 func Trace(prefix interface{}, err error) error {
+	if ce, ok := err.(*compileError); ok {
+		ce.ori = Trace(prefix, err)
+		return ce
+	}
 	if te, ok := err.(*traceError); ok {
 		te.stack = append(te.stack, prefix)
 		return te
@@ -71,6 +75,9 @@ func (e *compileError) Error() string {
 }
 
 func OnCompile(path string, lines []string, err error) error {
+	if ce, ok := err.(*compileError); ok {
+		return ce
+	}
 	ts := decodeTrace(err)
 	if len(ts) == 0 {
 		return err
@@ -80,8 +87,13 @@ func OnCompile(path string, lines []string, err error) error {
 		chIdxStr   string
 	)
 	switch len(ts) {
-	case 0, 1:
+	case 0:
 		return err
+
+	case 1:
+		// Miss path, add path and call again.
+		err = Trace(path, err)
+		return OnCompile(path, lines, err)
 
 	case 2:
 		lineIdxStr = ts[0]

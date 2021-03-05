@@ -6,6 +6,8 @@ import (
 )
 
 type Tag struct {
+	Line int
+
 	Name    string
 	Options []Option
 }
@@ -18,7 +20,7 @@ type Option struct {
 // +gen:xxx
 const tagPrefix = "+gen:"
 
-func ParseTag(prefix, line string) (*Tag, error) {
+func ParseTag(idx int, prefix, line string) (*Tag, error) {
 	if !strings.HasPrefix(line, prefix) {
 		return nil, nil
 	}
@@ -34,6 +36,7 @@ func ParseTag(prefix, line string) (*Tag, error) {
 	}
 	tag := new(Tag)
 	tag.Name = tmp[0]
+	tag.Line = idx + 1
 	tmp = tmp[1:]
 	for _, optStr := range tmp {
 		optTmp := strings.Split(optStr, "=")
