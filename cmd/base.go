@@ -75,5 +75,21 @@ func Execute(args []string) {
 }
 
 func showHelp() {
-	fmt.Println("help")
+	fmt.Println(help)
 }
+
+const help = `go-gendb is a command-tool to generate GO database code.
+
+Usage:
+    go-gendb <command> [flags]
+
+Generate Commands:
+    gen    Generate code for one file.
+    clean  Remove generated code(s) or cached data.
+    conn   Configure database connection.
+
+Debug Commands:
+    cgo    Compile the go file.
+    csql   Compile the sql file.
+
+Use "go-gendb help <command>" for more information about a command.`

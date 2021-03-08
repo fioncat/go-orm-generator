@@ -14,6 +14,9 @@ var Cmder = &cmdt.Command{
 	Name: "cgo",
 	Pv:   (*Arg)(nil),
 
+	Usage: "cgo <path>",
+	Help:  desc,
+
 	Action: func(p interface{}) error {
 		arg := p.(*Arg)
 		file, err := golang.ReadFile(arg.Path)
@@ -24,3 +27,11 @@ var Cmder = &cmdt.Command{
 		return nil
 	},
 }
+
+const desc = `
+Cgo executes the compilation process on a go file and
+outputs the result in the form of JSON.
+
+The input file must meet the go-gendb specification.
+
+See also: csql`

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fioncat/go-gendb/coder"
 	"github.com/fioncat/go-gendb/compile/golang"
@@ -23,6 +24,8 @@ type Arg struct {
 	LogPath string `flag:"log-path"`
 	Cache   bool   `flag:"cache"`
 
+	CacheTTL string `flag:"cache-ttl"`
+
 	Path string `arg:"path"`
 }
 
@@ -32,6 +35,14 @@ func Do(arg *Arg) error {
 	}
 	if arg.Cache {
 		rdb.ENABLE_TABLE_CACHE = true
+	}
+	if arg.CacheTTL != "" {
+		cacheDuration, err := time.ParseDuration(arg.CacheTTL)
+		if err != nil {
+			return fmt.Errorf(`cache-ttl "%s" is bad format`,
+				arg.CacheTTL)
+		}
+		rdb.TABLE_CACHE_TTL = cacheDuration
 	}
 	data, err := ioutil.ReadFile(arg.Path)
 	if err != nil {

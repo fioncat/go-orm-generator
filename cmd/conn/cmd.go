@@ -17,6 +17,9 @@ var Cmder = &cmdt.Command{
 	Name: "conn",
 	Pv:   (*Arg)(nil),
 
+	Usage: "conn [-u|-d|-a] <key>",
+	Help:  desc,
+
 	Action: func(p interface{}) error {
 		arg := p.(*Arg)
 		switch {
@@ -47,3 +50,26 @@ func inputCfg() *conn.Config {
 
 	return cfg
 }
+
+const desc = `
+Conn is used to configure or view the database connections
+which may be used in code generation.
+
+Database connections will be stored on the local disk, and
+they will be stored in "~/.go_gendb_store/conn".
+
+Using different flags will perform different operations.
+If there is no flag, the database connection will be displayed
+directly in the form of JSON.
+
+Command Flags:
+    <key>
+         Connection key. Used to uniquely identify a connection.
+    -u
+         Upsert mode.
+    -a
+         Add mode.
+    -d
+         Delete mode.
+
+See alse: gen`
