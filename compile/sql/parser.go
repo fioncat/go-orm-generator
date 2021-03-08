@@ -417,8 +417,8 @@ func parseSelect(s *token.Scanner) ([]*QueryField, error) {
 				err = parseIfnull(s, field)
 
 			case _count:
-				err = parseCount(s, field)
 				s.Next(nil)
+				err = parseCount(s, field)
 
 			default:
 				return nil, e.NotMatchL("FUNCTION")

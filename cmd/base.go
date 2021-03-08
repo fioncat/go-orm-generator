@@ -6,6 +6,7 @@ import (
 
 	"github.com/fioncat/go-gendb/cmd/c/cgo"
 	"github.com/fioncat/go-gendb/cmd/c/csql"
+	"github.com/fioncat/go-gendb/cmd/clean"
 	"github.com/fioncat/go-gendb/cmd/conn"
 	"github.com/fioncat/go-gendb/cmd/gen"
 	"github.com/fioncat/go-gendb/misc/cmdt"
@@ -19,6 +20,7 @@ func init() {
 	cmds["csql"] = csql.Cmder
 	cmds["gen"] = gen.Cmder
 	cmds["conn"] = conn.Cmder
+	cmds["clean"] = clean.Cmder
 }
 
 func getCmd(name string) *cmdt.Command {

@@ -180,7 +180,7 @@ func (t *target) Func(idx int, c *coder.Function, ic *coder.Import) {
 }
 
 func (t *target) dyn(c *coder.Function, m *method, hasPre, hasRep bool) {
-	c.P(0, "// [gendb] dynamic start.")
+	c.P(0, "// [dynamic] start.")
 	preCap, repCap := dynCalcValsCap(m.sql)
 	if hasPre {
 		c.P(0, "pvs := make([]interface{}, 0, ", preCap, ")")
@@ -193,7 +193,7 @@ func (t *target) dyn(c *coder.Function, m *method, hasPre, hasRep bool) {
 	for idx, dp := range m.sql.Dps {
 		name := fmt.Sprintf("_%s_%s%d",
 			t.name, m.base.Name, idx)
-		c.P(0, "// concat: part ", idx)
+		c.P(0, "// [dynamic] part ", idx)
 
 		switch dp.Type {
 		case sql.DynamicTypeConst:
@@ -231,9 +231,9 @@ func (t *target) dyn(c *coder.Function, m *method, hasPre, hasRep bool) {
 			c.P(0, "}")
 		}
 	}
-	c.P(0, "// concat")
+	c.P(0, "// [dynamic] joins")
 	c.P(0, "_sql := strings.Join(slice, ", "\" \")")
-	c.P(0, "// [gendb] dynamic done.")
+	c.P(0, "// [dynamic] done")
 }
 
 func dynFor(c *coder.Function, dp *sql.DynamicPart) {
