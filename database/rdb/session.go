@@ -10,6 +10,11 @@ import (
 	"github.com/fioncat/go-gendb/misc/log"
 )
 
+var (
+	tableInfo     map[string]Table
+	tableInfoOnce sync.Once
+)
+
 // Session stores the connection to the remote database
 // (RDB only) and some related operations of the database.
 // Using this structure method can directly manipulate the
@@ -48,29 +53,40 @@ type Session struct {
 // be saved on the disk. The next time you call Desc on the
 // same table, you can use the cache. The cache expiration
 // time defaults to the TABLE_CACHE_TTL variable.
-func (s *Session) Desc(tableName string) (Table, error) {
+func (s *Session) Desc(tableName string) (table Table, err error) {
+	tableInfoOnce.Do(func() {
+		tableInfo = make(map[string]Table)
+	})
+	table = tableInfo[tableName]
+	if table != nil {
+		return
+	}
+	defer func() {
+		if table != nil {
+			tableInfo[tableName] = table
+		}
+	}()
 	if !ENABLE_TABLE_CACHE {
-		return s.oper.Desc(s.db, tableName)
+		table, err = s.oper.Desc(s.db, tableName)
+		return
 	}
 
 	// try to fetch data from disk.
 	key := fmt.Sprintf("cache.table.%s.%s.%s", s.cfg.Key,
 		s.cfg.Database, tableName)
-	table := getCacheTable(key)
+	table = getCacheTable(key)
 	if table != nil {
-		return table, nil
+		return
 	}
 
 	// cache no hit, get table from database
 	// and save to cache
-	var err error
 	table, err = s.oper.Desc(s.db, tableName)
 	if err != nil {
-		return nil, err
+		return
 	}
 	saveCacheTable(key, table)
-
-	return table, nil
+	return
 }
 
 // Check is used to check sql statement, "sql" means the

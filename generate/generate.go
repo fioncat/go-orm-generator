@@ -86,6 +86,7 @@ func gen(res *link.Result, t coder.Target) (*coder.Coder, error) {
 	c.Empty()
 
 	importCoder := new(coder.Import)
+	t.Imports(importCoder)
 	c.AddSub(importCoder)
 
 	constCoder := new(coder.Var)

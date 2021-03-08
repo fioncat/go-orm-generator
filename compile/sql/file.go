@@ -112,8 +112,8 @@ func readLines(path string, lines []string) (*File, error) {
 			flatState(dp.State)
 		}
 	}
-	log.Infof("[c] compile sql file '%s' "+
-		"success, found %d method(s), took: %v",
+
+	log.Infof("[c] %s, %d methods, took: %v",
 		path, len(file.Methods), time.Since(start))
 
 	return file, nil

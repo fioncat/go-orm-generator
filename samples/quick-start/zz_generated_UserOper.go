@@ -4,8 +4,8 @@
 package user
 
 import (
+	run "github.com/fioncat/go-gendb/api/sql/run"
 	sql "database/sql"
-	fmt "fmt"
 )
 
 const (
@@ -15,12 +15,23 @@ const (
 
 var UserOper = &_UserOper{}
 
+type User struct {
+	Id   int64  `table:"user" field:"id"`
+	Name string `table:"user" field:"name"`
+	Age  int32  `table:"user" field:"age"`
+}
+
 type _UserOper struct {}
 
 func (*_UserOper) FindById(db *sql.DB, id int64) (*User, error) {
-	var a int
+	var o *User
+	err := run.QueryOne(db, _UserOper_FindById, nil, []interface{}{id}, func(rows *sql.Rows) error {
+		o = new(User)
+		return rows.Scan(&o.Id, &o.Name, &o.Age)
+	})
+	return o, err
 }
 
 func (*_UserOper) Add(db *sql.DB, u *User) (sql.Result, error) {
-	var a int
+	return run.Exec(db, _UserOper_Add, nil, []interface{}{u.Id, u.Name, u.Age})
 }

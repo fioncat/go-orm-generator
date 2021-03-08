@@ -49,15 +49,15 @@ func (s *Struct) code(c *Coder) bool {
 			}
 			tagStr = strings.Join(ts, " ")
 		}
-		c.P(1, name, " ", _type, " ", tagStr)
+		c.P(1, name, " ", _type, " `", tagStr, "`")
 	}
 	c.P(0, "}")
 
 	return true
 }
 
-func (s *Struct) Comment(str string) {
-	s.comm = str
+func (s *Struct) Comment(str string, vs ...interface{}) {
+	s.comm = fmt.Sprintf(str, vs...)
 }
 
 func (s *Struct) SetName(name string) {

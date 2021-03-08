@@ -670,7 +670,12 @@ func parsePh(s *token.Scanner) (*Statement, error) {
 			if e.Token == token.RBRACE {
 				break
 			}
-			nameBucket = append(nameBucket, e.Get())
+			name := e.Get()
+			if e.String {
+				quo := string(e.StringRune)
+				name = quo + name + quo
+			}
+			nameBucket = append(nameBucket, name)
 		}
 		if len(nameBucket) == 0 {
 			return nil, e.FmtErrL("name is empty")
@@ -813,6 +818,9 @@ func parseCond(s *token.Scanner) (*DynamicPart, error) {
 		}
 		if e.Token == token.SPACE ||
 			e.Token == token.BREAK {
+			if dp.Type == DynamicTypeIf {
+				subBucket = append(subBucket, e)
+			}
 			continue
 		}
 		if e.Token == token.RBRACE {
@@ -910,9 +918,6 @@ func parseCondIf(s *token.Scanner, dp *DynamicPart) {
 			bucket = append(bucket, quo+e.Get()+quo)
 		} else {
 			bucket = append(bucket, e.Get())
-		}
-		if e.Indent || e.String {
-			bucket = append(bucket, " ")
 		}
 	}
 	dp.IfCond = strings.Join(bucket, "")

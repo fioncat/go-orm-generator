@@ -4,6 +4,8 @@ type Target interface {
 	Name() string
 	Path() string
 
+	Imports(imp *Import)
+
 	Vars(c *Var, imp *Import)
 
 	Consts(c *Var, imp *Import)

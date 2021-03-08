@@ -1,13 +1,17 @@
 package sql
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fioncat/go-gendb/coder"
 	"github.com/fioncat/go-gendb/compile/golang"
 	"github.com/fioncat/go-gendb/compile/sql"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/link/internal/refs"
+	"github.com/fioncat/go-gendb/misc/log"
 )
 
 type Linker struct{}
@@ -21,189 +25,226 @@ type conf struct {
 func defaultConf() *conf {
 	return &conf{
 		dbUse:   "db",
-		runPath: "github.com/finocat/go-gendb/api/sql/run",
+		runPath: "github.com/fioncat/go-gendb/api/sql/run",
 		runName: "run",
 	}
 }
 
 func (*Linker) Do(file *golang.File) ([]coder.Target, error) {
-	conf := defaultConf()
+	start := time.Now()
+	// file's global config
+	c := defaultConf()
 	for _, opt := range file.Options {
 		switch opt.Key {
 		case "db_use":
-			conf.dbUse = opt.Value
+			c.dbUse = opt.Value
 
 		case "run_path":
-			conf.runPath = opt.Value
+			c.runPath = opt.Value
 
 		case "run_name":
-			conf.runName = opt.Value
+			c.runName = opt.Value
 		}
 	}
 
+	// Each tagged interface generate one target.
 	ts := make([]coder.Target, len(file.Interfaces))
 	for idx, inter := range file.Interfaces {
-		t, err := createTarget(inter, file, conf)
+		t, err := createTarget(file, inter)
 		if err != nil {
 			return nil, err
 		}
+		t.c = c
 		ts[idx] = t
 	}
+
+	log.Infof("[link] %s, %d target(s), took: %v",
+		file.Path, len(ts), time.Since(start))
+
 	return ts, nil
 }
 
-func createTarget(inter *golang.Interface, file *golang.File, c *conf) (
-	coder.Target, error,
+func createTarget(file *golang.File, inter *golang.Interface) (
+	*target, error,
 ) {
-	if inter.Tag.Name == "" {
-		return nil, inter.FmtError("tag miss name")
-	}
 	name := inter.Tag.Name
-
-	sqlM0 := make(map[string]*sql.Method)
-	sqlM1 := make(map[string]*sql.Method)
+	// import sql method(s)
+	sqlm0 := make(map[string]*sql.Method)
+	sqlm1 := make(map[string]*sql.Method)
 
 	var sqlPaths []string
 	for _, opt := range inter.Tag.Options {
-		if opt.Key != "" && opt.Key != "file" {
-			continue
-		}
 		if opt.Value == "" {
 			continue
 		}
-		sqlPaths = append(sqlPaths, opt.Value)
-	}
-	if len(sqlPaths) == 0 {
-		return nil, inter.FmtError("missing sql file")
+		switch opt.Key {
+		case "", "file":
+			sqlPaths = append(sqlPaths, opt.Value)
+		}
 	}
 
 	for _, sqlPath := range sqlPaths {
-		v, err := refs.Import(file.Path, sqlPath, "sql")
+		v, err := refs.Import(
+			file.Path, sqlPath, "sql")
 		if err != nil {
 			return nil, err
 		}
-		sqlFile := v.(*sql.File)
-		for _, sqlM := range sqlFile.Methods {
-			if sqlM.Inter == name {
-				sqlM0[sqlM.Name] = sqlM
+		file := v.(*sql.File)
+		for _, m := range file.Methods {
+			if m.Inter == name {
+				sqlm0[m.Name] = m
 				continue
 			}
-			if sqlM.Inter == "" {
-				sqlM1[sqlM.Name] = sqlM
-				continue
-			}
+			sqlm1[m.Name] = m
 		}
 	}
-
 	t := new(target)
-	t.inter = inter
 	t.file = file
-	t.conf = c
 	t.name = name
-	t.ms = make([]*method, len(inter.Methods))
 
-	for idx, gom := range inter.Methods {
-		var sqlm *sql.Method
-		sqlm = sqlM0[gom.Name]
-		if sqlm == nil {
-			sqlm = sqlM1[gom.Name]
+	t.importMap = make(map[string]*golang.Import)
+	for _, imp := range file.Imports {
+		var name string
+		if imp.Name != "" {
+			name = imp.Name
+		} else {
+			name = filepath.Base(imp.Path)
 		}
-		if sqlm == nil {
-			return nil, gom.FmtError(`can not find`+
-				` method "%s" from sql file`, gom.Name)
-		}
+		t.importMap[name] = imp
+	}
 
-		m := &method{
-			sqlm: sqlm,
-			gom:  gom,
+	t.methods = make([]*method, len(inter.Methods))
+	for idx, goMethod := range inter.Methods {
+		sqlMethod := sqlm0[goMethod.Name]
+		if sqlMethod == nil {
+			sqlMethod = sqlm1[goMethod.Name]
 		}
-
-		isAutoRet := false
-		for _, tag := range gom.Tags {
-			switch tag.Name {
-			case "auto-ret":
-				isAutoRet = true
-
-			case "last-id":
-				m.lastId = true
-			}
+		if sqlMethod == nil {
+			return nil, goMethod.FmtError(`can not `+
+				`find method "%s" in sql file`, goMethod.Name)
 		}
-		if isAutoRet {
-			ret, err := createRet(gom, sqlm)
+		m := new(method)
+		m.sql = sqlMethod
+		m.base = goMethod
+		if sqlMethod.Exec {
+			err := setExecMethodType(goMethod, m)
 			if err != nil {
 				return nil, err
 			}
-			ret.m = m
+		} else {
+			if goMethod.RetSlice {
+				m.Type = queryMulti
+			} else {
+				m.Type = queryOne
+			}
+		}
+
+		isAutoRet := false
+		for _, tag := range goMethod.Tags {
+			if tag.Name == "auto-ret" {
+				isAutoRet = true
+				break
+			}
+		}
+		if isAutoRet {
+			ret, err := autoRet(goMethod, sqlMethod)
+			if err != nil {
+				return nil, err
+			}
+			ret.methodName = fmt.Sprintf("%s.%s",
+				t.name, goMethod.Name)
 			t.rets = append(t.rets, ret)
 		}
-		t.ms[idx] = m
+
+		t.methods[idx] = m
 	}
 
 	return t, nil
 }
 
-func createRet(gom *golang.Method, sqlm *sql.Method) (*ret, error) {
-	err := rdb.MustInit()
-	if err != nil {
-		return nil, gom.FmtError("auto-ret " +
-			"require database connection")
+func setExecMethodType(goMethod *golang.Method, m *method) error {
+	var execType int
+	switch goMethod.RetType {
+	case "sql.Result":
+		execType = execResult
+
+	case "int64":
+		var lastId bool
+		for _, tag := range goMethod.Tags {
+			if tag.Name == "lastid" {
+				lastId = true
+				break
+			}
+		}
+		if lastId {
+			execType = execLastId
+		} else {
+			execType = execAffect
+		}
+
+	default:
+		return goMethod.FmtError(`Exec sql only `+
+			`support returns "sql.Result" or "int64", `+
+			`found: "%s"`, goMethod.RetType)
 	}
 
-	name, err := extractRetName(gom)
-	if err != nil {
-		return nil, err
+	m.Type = execType
+	return nil
+}
+
+func autoRet(goMethod *golang.Method, sqlMethod *sql.Method) (
+	*ret, error,
+) {
+	if err := rdb.MustInit(); err != nil {
+		return nil, goMethod.FmtError(`auto-ret ` +
+			`must set database connection`)
 	}
-
-	ret := new(ret)
-	ret.name = name
-	ret.fs = make([]*field, len(sqlm.Fields))
-	for idx, f := range sqlm.Fields {
-		fieldName := getFieldName(f)
-		tableName := f.Table
-
-		table, err := rdb.Get().Desc(tableName)
+	if sqlMethod.Exec {
+		return nil, goMethod.FmtError(`exec sql ` +
+			`do not support auto-ret`)
+	}
+	if goMethod.RetSimple {
+		return nil, goMethod.FmtError(`simple type `+
+			`"%s" do not support auto-ret`,
+			goMethod.RetType)
+	}
+	retName := goMethod.RetType
+	if goMethod.RetSlice {
+		retName = strings.TrimPrefix(retName, "[]")
+	}
+	if goMethod.RetPointer {
+		retName = strings.TrimPrefix(retName, "*")
+	}
+	r := new(ret)
+	r.name = retName
+	r.fields = make([]*retField, len(sqlMethod.Fields))
+	for idx, queryField := range sqlMethod.Fields {
+		table, err := rdb.Get().Desc(queryField.Table)
 		if err != nil {
-			return nil, gom.FmtError("Desc "+
+			return nil, goMethod.FmtError("desc "+
 				"table failed: %v", err)
 		}
-		dbField := table.Field(f.Name)
+
+		dbField := table.Field(queryField.Name)
 		if dbField == nil {
-			return nil, sqlm.FmtError(`can not`+
-				` find field "%s" from table "%s"`+
-				` in the remote database.`,
-				f.Name, f.Table)
+			return nil, goMethod.FmtError(`can not `+
+				`find field "%s" in table "%s"`,
+				queryField.Name, queryField.Table)
 		}
 
-		retField := new(field)
-		retField.name = fieldName
-		retField.goType = dbField.GetType()
-		retField.dbTable = f.Table
-		retField.dbField = f.Name
+		retField := new(retField)
+		if queryField.Alias != "" {
+			retField.name = queryField.Alias
+		}
+		if retField.name == "" {
+			retField.name = coder.GoName(queryField.Name)
+		}
+		fType := rdb.Get().GoType(dbField.GetType())
+		retField._type = fType
+		retField.table = queryField.Table
+		retField.field = queryField.Name
 
-		ret.fs[idx] = retField
+		r.fields[idx] = retField
 	}
-
-	return ret, nil
-}
-
-func extractRetName(gom *golang.Method) (string, error) {
-	name := gom.RetType
-	if gom.RetSlice {
-		name = strings.TrimPrefix(name, "[]")
-	}
-	if gom.RetPointer {
-		name = strings.TrimPrefix(name, "*")
-	}
-	if strings.Contains(name, ".") {
-		return "", gom.FmtError("auto-ret's "+
-			"return type must be local, found: %s", name)
-	}
-	return name, nil
-}
-
-func getFieldName(f *sql.QueryField) string {
-	if f.Alias != "" {
-		return f.Alias
-	}
-	return coder.GoName(f.Name)
+	return r, nil
 }

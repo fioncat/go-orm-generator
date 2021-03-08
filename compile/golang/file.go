@@ -137,8 +137,7 @@ func readLines(path string, lines []string) (*File, error) {
 		inter := p.Get().(*Interface)
 		file.Interfaces = append(file.Interfaces, inter)
 	}
-	log.Infof("[c] compile golang file '%s' "+
-		"success, found %d inters, took: %v",
+	log.Infof("[c] %s, %d inters, took: %v",
 		path, len(file.Interfaces), time.Since(start))
 
 	return file, nil
