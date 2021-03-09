@@ -66,6 +66,7 @@ func Do(arg *Arg) error {
 	}
 
 	for _, t := range res.Targets {
+		start := time.Now()
 		c, err := gen(res, t)
 		if err != nil {
 			return err
@@ -84,6 +85,8 @@ func Do(arg *Arg) error {
 		if err != nil {
 			return err
 		}
+		log.Infof("[gen] %s, name=%s, took %v",
+			t.Path(), t.Name(), time.Since(start))
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/fioncat/go-gendb/database/conn"
 	"github.com/fioncat/go-gendb/misc/errors"
@@ -39,6 +40,13 @@ type Session struct {
 	connect ConnectFunc
 }
 
+const (
+	descCacheMem = iota
+	descCacheDisk
+	descCacheNone
+	descCacheNotHit
+)
+
 // Desc is used to describe a data table. It will return
 // some basic information of the data table, including
 // table name, comments, table field information, etc.
@@ -55,18 +63,40 @@ type Session struct {
 // time defaults to the TABLE_CACHE_TTL variable.
 func (s *Session) Desc(tableName string) (table Table, err error) {
 	tableInfoOnce.Do(func() {
+		log.Infof("[desc] cacheEnable=%v, cacheTTL=%v",
+			ENABLE_TABLE_CACHE, TABLE_CACHE_TTL)
 		tableInfo = make(map[string]Table)
 	})
+	start := time.Now()
+	var cacheStatus int
+
 	table = tableInfo[tableName]
 	if table != nil {
+		cacheStatus = descCacheMem
 		return
 	}
 	defer func() {
 		if table != nil {
+			var cacheStatusStr string
+			switch cacheStatus {
+			case descCacheNone:
+				cacheStatusStr = "None"
+
+			case descCacheDisk:
+				cacheStatusStr = "Disk"
+
+			case descCacheNotHit:
+				cacheStatusStr = "NotHit"
+			}
+			if cacheStatusStr != "" {
+				log.Infof("[desc] %s, cache=%s, took: %v",
+					tableName, cacheStatusStr, time.Since(start))
+			}
 			tableInfo[tableName] = table
 		}
 	}()
 	if !ENABLE_TABLE_CACHE {
+		cacheStatus = descCacheNone
 		table, err = s.oper.Desc(s.db, tableName)
 		return
 	}
@@ -76,9 +106,11 @@ func (s *Session) Desc(tableName string) (table Table, err error) {
 		s.cfg.Database, tableName)
 	table = getCacheTable(key)
 	if table != nil {
+		cacheStatus = descCacheDisk
 		return
 	}
 
+	cacheStatus = descCacheNotHit
 	// cache no hit, get table from database
 	// and save to cache
 	table, err = s.oper.Desc(s.db, tableName)

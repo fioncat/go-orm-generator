@@ -99,7 +99,6 @@ func getCacheTable(key string) Table {
 		return nil
 	}
 
-	log.Infof("table cache hit: %s", key)
 	return &cacheTable
 }
 
@@ -114,5 +113,4 @@ func saveCacheTable(key string, table Table) {
 		log.Errorf("save cache failed: key=%s, err=%v",
 			key, err)
 	}
-	log.Infof("save cache success: %s", key)
 }

@@ -113,7 +113,7 @@ func readLines(path string, lines []string) (*File, error) {
 		}
 	}
 
-	log.Infof("[c] %s, %d methods, took: %v",
+	log.Infof("[c] %s, %d method(s), took: %v",
 		path, len(file.Methods), time.Since(start))
 
 	return file, nil
