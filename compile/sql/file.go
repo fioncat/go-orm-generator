@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"fmt"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -61,6 +60,7 @@ func readLines(path string, lines []string) (*File, error) {
 	}
 	idx += 1
 
+	var tags []*base.Tag
 	for idx < len(lines) {
 		line := lines[idx]
 		tag, err := base.ParseTag(idx, commPrefix, line)
@@ -82,8 +82,9 @@ func readLines(path string, lines []string) (*File, error) {
 			}
 		}
 		if p == nil {
-			err = fmt.Errorf(`unknown tag type "%s"`, tag.Name)
-			return nil, errors.Trace(idx+1, err)
+			idx += 1
+			tags = append(tags, tag)
+			continue
 		}
 
 		err = base.ScanLines(commPrefix, p, lines, &idx)
@@ -100,7 +101,10 @@ func readLines(path string, lines []string) (*File, error) {
 			return nil, v.(error)
 
 		case *Method:
-			file.Methods = append(file.Methods, v.(*Method))
+			m := v.(*Method)
+			m.Tags = append(m.Tags, tags...)
+			tags = nil
+			file.Methods = append(file.Methods, m)
 		}
 	}
 

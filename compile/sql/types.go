@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 
+	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/misc/errors"
 )
 
@@ -20,6 +21,8 @@ type Method struct {
 	Dps []*DynamicPart
 
 	Fields []*QueryField
+
+	Tags []*base.Tag
 }
 
 func (m *Method) FmtError(a string, b ...interface{}) error {

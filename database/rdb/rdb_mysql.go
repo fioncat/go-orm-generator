@@ -20,15 +20,20 @@ func mysqlConnect(conn *conn.Config) (*sql.DB, error) {
 	if err != nil {
 		return nil, errors.Trace("parse addr", err)
 	}
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&timeout=50s&readTimeout=60s",
-		conn.User, conn.Password, addr.Host,
-		addr.Port, conn.Database)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&autocommit=true&parseTime=True",
+		conn.User,
+		conn.Password,
+		addr.Host,
+		addr.Port,
+		conn.Database)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, errors.Trace("connect db", err)
 	}
-	db.SetMaxOpenConns(20)
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("connect to database: %s", dsn)
 	return db, nil
 }

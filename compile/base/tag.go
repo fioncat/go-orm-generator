@@ -3,6 +3,8 @@ package base
 import (
 	"fmt"
 	"strings"
+
+	"github.com/fioncat/go-gendb/misc/errors"
 )
 
 type Tag struct {
@@ -10,6 +12,11 @@ type Tag struct {
 
 	Name    string
 	Options []Option
+}
+
+func (t *Tag) FmtError(a string, b ...interface{}) error {
+	err := fmt.Errorf(a, b...)
+	return errors.Trace(t.Line, err)
 }
 
 type Option struct {
