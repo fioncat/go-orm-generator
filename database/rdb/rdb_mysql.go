@@ -4,13 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/fioncat/go-gendb/database/conn"
 	"github.com/fioncat/go-gendb/misc/addr"
 	"github.com/fioncat/go-gendb/misc/errors"
+	"github.com/fioncat/go-gendb/misc/log"
 )
 
 // implement of mysql session
@@ -21,7 +21,7 @@ func mysqlConnect(conn *conn.Config) (*sql.DB, error) {
 		return nil, errors.Trace("parse addr", err)
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&timeout=5s&readTimeout=6s",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&timeout=50s&readTimeout=60s",
 		conn.User, conn.Password, addr.Host,
 		addr.Port, conn.Database)
 	db, err := sql.Open("mysql", dsn)
@@ -29,6 +29,7 @@ func mysqlConnect(conn *conn.Config) (*sql.DB, error) {
 		return nil, errors.Trace("connect db", err)
 	}
 	db.SetMaxOpenConns(20)
+	log.Infof("connect to database: %s", dsn)
 	return db, nil
 }
 
@@ -171,23 +172,15 @@ func (o *mysqlOper) Desc(db *sql.DB, tableName string) (Table, error) {
 		table.fieldNames = append(table.fieldNames, field.Name)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	// err = table.setComment(db, o.dbName)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	go func() {
-		err = table.setComment(db, o.dbName)
-		wg.Done()
-	}()
-
-	go func() {
-		err = table.setFieldsComment(db, o.dbName)
-		wg.Done()
-	}()
-	wg.Wait()
-
-	if err != nil {
-		return nil, err
-	}
+	// err = table.setFieldsComment(db, o.dbName)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return table, nil
 }

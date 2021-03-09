@@ -1,262 +1,357 @@
 package token
 
 import (
+	"fmt"
 	"strings"
 
-	"github.com/fioncat/go-gendb/misc/set"
+	"github.com/fioncat/go-gendb/misc/errors"
 )
 
-// Token is the smallest unit produced by lexical analysis.
-// It can be keywords, symbols, variables, etc. The original
-// sentence is converted into multiple tokens to better provide
-// to the parser for further analysis and create intermediate
-// structure.
-type Token struct {
-	isIndent bool
-	token    string
+type Token string
+
+func (t Token) PrefixOf(s string) bool {
+	return strings.HasPrefix(s, string(t))
 }
 
-// String returns the token as a string. If the token is an indent,
-// "INDENT" will be returned instead of the specific indent value.
-func (t Token) String() string {
-	if t.isIndent {
-		return "INDENT"
-	}
-	return t.token
+func (t Token) Trim(s string) string {
+	s = strings.TrimLeft(s, string(t))
+	s = strings.TrimSpace(s)
+	return s
 }
 
-// IsIndent returns whether the token is an indent.
-func (t Token) IsIndent() bool {
-	return t.isIndent
+func (t Token) Equal(s string) bool {
+	return s == string(t)
 }
 
-// Get returns the token value directly, if it is an indent, will
-// return the value of the indent.
 func (t Token) Get() string {
-	return t.token
+	return string(t)
 }
 
-// Rune returns the token in the form of character. Limited to
-// tokens with only one character. If there is more than one, return 0.
-func (t Token) Rune() rune {
-	if len(t.token) != 1 {
-		return 0
-	}
-	return rune(t.token[0])
-}
+const (
+	SPACE = Token(" ")
 
-// EqRune compares whether the token is equal to a given character.
-func (t Token) EqRune(r rune) bool {
-	if len(t.token) != 1 {
-		return false
-	}
-	return r == rune(t.token[0])
-}
+	LPAREN = Token("(")
+	RPAREN = Token(")")
 
-// EqString compares whether the token is equal to a given string.
-func (t Token) EqString(s string) bool {
-	return s == t.token
-}
+	PLUS  = Token("+")
+	COLON = Token(":")
 
-// Prefix determines whether the incoming string is prefixed with
-// the current token.
-func (t Token) Prefix(s string) bool {
-	return strings.HasPrefix(s, t.token)
-}
+	LBRACE = Token("{")
+	RBRACE = Token("}")
 
-// Contains determines whether the incoming string contains the
-// current token.
-func (t Token) Contains(s string) bool {
-	return strings.Contains(s, t.token)
-}
+	LBRACK = Token("[")
+	RBRACK = Token("]")
 
-func (t Token) Match(ot Token) bool {
-	return t.Get() == ot.Get()
-}
+	MUL    = Token("*")
+	COMMA  = Token(",")
+	PERIOD = Token(".")
 
-// Indent creates a new indent token.
-func Indent(indent string) Token {
-	return Token{isIndent: true, token: indent}
-}
+	PERCENT = Token("%")
 
-// Key creates a new key token.
-func Key(key string) Token {
-	return Token{isIndent: false, token: key}
-}
+	EQ = Token("=")
+	GT = Token(">")
+	LT = Token("<")
 
-// Bucket stores an slice of tokens and a buffer of indent characters.
-// Support adding new key tokens to the tokens slice or converting
-// the data in the character buffer into indent and append to the
-// token slice.
-// This structure is generally a temporary cache structure during
-// scanning (syntax analysis).
-type Bucket struct {
+	BREAK = Token("\n")
+)
+
+const (
+	_Space = ' '
+	_Quo0  = '"'
+	_Quo1  = '\''
+	_Quo2  = '`'
+)
+
+type Scanner struct {
+	line    string
+	lineIdx int
+
+	es  []Element
+	idx int
+
 	tokens []Token
-	buff   []rune
 
-	keywords *set.Set
+	kws map[string]int
+	chs map[rune]int
+
+	ignoreCase bool
+
+	BreakLine bool
 }
 
-// NewBucket creates a new empty Bucket
-func NewBucket() *Bucket {
-	return new(Bucket)
+func EmptyScannerIC(tokens []Token) *Scanner {
+	return newScanner(tokens, true)
 }
 
-// Append add the "c" to the characters' buffer.
-func (b *Bucket) Append(c rune) {
-	b.buff = append(b.buff, c)
+func EmptyScanner(tokens []Token) *Scanner {
+	return newScanner(tokens, false)
 }
 
-// SetKeywords set some keywords. If the keyword hits when adding
-// indent, it will be added in the way of key token.
-func (b *Bucket) SetKeywords(kws []string) {
-	for i, kw := range kws {
-		kws[i] = strings.ToUpper(kw)
+func newScanner(tokens []Token, ignoreCase bool) *Scanner {
+	s := new(Scanner)
+	s.kws = make(map[string]int)
+	s.chs = make(map[rune]int)
+	s.ignoreCase = ignoreCase
+	for idx, t := range tokens {
+		if len(t) == 1 {
+			s.chs[[]rune(t)[0]] = idx
+			continue
+		}
+		str := string(t)
+		if ignoreCase {
+			str = strings.ToUpper(str)
+		}
+		s.kws[str] = idx
 	}
-	b.keywords = set.New(kws...)
+	s.tokens = tokens
+	return s
+
 }
 
-// Indent force convert buffer into indent token and append it
-// to the tokens slice.
-// Note that if SetKeywords has been called, and the content of
-// the buffer happens to be one of the keywords, it will increase
-// in the way of the key token.
-func (b *Bucket) Indent() {
-	if len(b.buff) == 0 {
-		return
+func CopyScanner(os *Scanner, es []Element) *Scanner {
+	s := new(Scanner)
+	s.line = os.line
+	s.lineIdx = os.lineIdx
+
+	s.tokens = os.tokens
+	s.chs = os.chs
+	s.kws = os.kws
+
+	s.es = es
+	s.idx = 0
+
+	return s
+}
+
+func (s *Scanner) Empty() bool {
+	if s == nil {
+		return true
 	}
-	s := string(b.buff)
-	if b.keywords != nil {
-		if b.keywords.Contains(strings.ToUpper(s)) {
-			// The indent is a keyword, add as key
-			b.tokens = append(b.tokens,
-				Key(strings.ToUpper(s)))
-			b.buff = nil
-			return
+	if len(s.es) == 0 {
+		return true
+	}
+	return false
+}
+
+func (s *Scanner) AddLine(lidx int, line string) {
+	var bucket []rune
+	var quo *rune
+
+	s.line = line
+	s.lineIdx = lidx
+
+	rs := []rune(line)
+	flush := func(idx int) {
+		if len(bucket) == 0 {
+			if quo == nil {
+				return
+			}
+		}
+		str := string(bucket)
+		kw := str
+		if s.ignoreCase {
+			kw = strings.ToUpper(str)
+		}
+		var e Element
+		e.Pos = idx - len(bucket)
+		e.line = lidx + 1
+		if quo != nil {
+			// - STRINGs
+			e.Token = Token(str)
+			e.String = true
+			e.StringRune = *quo
+			quo = nil
+		} else if tIdx, ok := s.kws[kw]; ok {
+			// - KEYWORDs
+			e.Token = s.tokens[tIdx]
+		} else {
+			// - INDENTs
+			e.Token = Token(str)
+			e.Indent = true
+		}
+
+		if idx >= len(rs)-1 {
+			e.Space = true
+		} else {
+			if rs[idx] == ' ' {
+				e.Space = true
+			}
+		}
+
+		s.es = append(s.es, e)
+		// reset for next iteration.
+		bucket = nil
+	}
+	for idx, r := range rs {
+		if quo != nil && r != *quo {
+			bucket = append(bucket, r)
+			continue
+		}
+		if tIdx, ok := s.chs[r]; ok {
+			flush(idx)
+			var e Element
+			e.Token = s.tokens[tIdx]
+			e.Pos = idx
+			e.line = lidx + 1
+			s.es = append(s.es, e)
+			continue
+		}
+
+		switch r {
+		case _Space:
+			if quo != nil {
+				bucket = append(bucket, r)
+				break
+			}
+			flush(idx)
+
+		case _Quo0, _Quo1, _Quo2:
+			if quo != nil {
+				if *quo == r {
+					// STRING ends
+					flush(idx)
+					break
+				}
+				// not end quo in STRING
+				bucket = append(bucket, r)
+				break
+			}
+			flush(idx)
+			// STRING starts
+			quo = new(rune)
+			*quo = r
+
+		default:
+			bucket = append(bucket, r)
 		}
 	}
-	b.tokens = append(b.tokens, Indent(s))
-	b.buff = nil
-}
+	flush(len(rs) - 1)
 
-// Key append a new key indent to the indent slice.
-func (b *Bucket) Key(key Token) {
-	b.Indent()
-	b.tokens = append(b.tokens, key)
-}
+	if s.BreakLine {
+		var e Element
+		e.Token = BREAK
+		e.Pos = len(rs)
+		e.line = lidx + 1
 
-// Get returns the indent slice.
-func (b *Bucket) Get() []Token {
-	return b.tokens
-}
-
-func (b *Bucket) AddToken(t Token) {
-	b.tokens = append(b.tokens, t)
-}
-
-// common key tokens.
-var (
-	EMPTY = Key("")
-	SPACE = Key(" ")
-
-	BREAK = Key("\n")
-	TABLE = Key("\t")
-
-	QUO   = Key(`"`)
-	SQUO  = Key(`'`)
-	PAUSE = Key("`")
-
-	LPAREN = Key("(")
-	RPAREN = Key(")")
-
-	PLUS  = Key("+")
-	COLON = Key(":")
-
-	LBRACE = Key("{")
-	RBRACE = Key("}")
-
-	LBRACK = Key("[")
-	RBRACK = Key("]")
-	BRACKS = Key("[]")
-
-	MUL    = Key("*")
-	COMMA  = Key(",")
-	PERIOD = Key(".")
-
-	IF  = Key("if")
-	FOR = Key("for")
-)
-
-// go-gendb tag
-var (
-	TAG_PREFIX = Key("// +gendb")
-	TAG_NAME   = Key("+gendb")
-)
-
-// Golang keywords
-var (
-	GO_IMPORT    = Key("import")
-	GO_IMPORTS   = Key("import (")
-	GO_PACKAGE   = Key("package")
-	GO_INTERFACE = Key("interface")
-	GO_TYPE      = Key("type")
-	GO_COMMENT   = Key("//")
-	GO_ERROR     = Key("error")
-)
-
-// SQL tags
-var (
-	SQL_TAG     = Key("-- !")
-	SQL_COMMENT = Key("--")
-
-	SQL_DYNAMIC_TAG = Key("-- +")
-	SQL_REUSE_TAG   = Key("-- @")
-)
-
-// SQL keywords
-var (
-	SQL_SELECT = Key("SELECT")
-	SQL_FROM   = Key("FROM")
-	SQL_INNER  = Key("INNER")
-	SQL_LEFT   = Key("LEFT")
-	SQL_RIGHT  = Key("RIGHT")
-	SQL_JOIN   = Key("JOIN")
-	SQL_ON     = Key("ON")
-	SQL_WHERE  = Key("WHERE")
-	SQL_ORDER  = Key("ORDER")
-	SQL_BY     = Key("BY")
-	SQL_AS     = Key("AS")
-	SQL_GROUP  = Key("GROUP")
-	SQL_IFNULL = Key("IFNULL")
-	SQL_LIMIT  = Key("LIMIT")
-	SQL_COUNT  = Key("COUNT")
-
-	SQL_UPDATE = Key("UPDATE")
-	SQL_DELETE = Key("DELETE")
-	SQL_INSERT = Key("INSERT")
-
-	SQL_Keywords = []string{
-		SQL_SELECT.Get(),
-		SQL_FROM.Get(),
-		SQL_INNER.Get(),
-		SQL_LEFT.Get(),
-		SQL_RIGHT.Get(),
-		SQL_JOIN.Get(),
-		SQL_ON.Get(),
-		SQL_WHERE.Get(),
-		SQL_ORDER.Get(),
-		SQL_BY.Get(),
-		SQL_AS.Get(),
-		SQL_GROUP.Get(),
-		SQL_IFNULL.Get(),
-		SQL_LIMIT.Get(),
-		SQL_COUNT.Get(),
+		s.es = append(s.es, e)
 	}
-)
+}
 
-// SQL Plarceholders
-var (
-	SQLPH_PRE   = Key("$")
-	SQLPH_REP   = Key("#")
-	SQLPH_REUSE = Key("@")
-)
+func NewScanner(line string, tokens []Token) *Scanner {
+	s := EmptyScanner(tokens)
+	s.AddLine(0, line)
+	return s
+}
+
+func (s *Scanner) Cur(e *Element) bool {
+	if s.idx >= len(s.es) {
+		return false
+	}
+	*e = s.es[s.idx]
+	return true
+}
+
+func (s *Scanner) Next(e *Element) bool {
+	if e == nil {
+		if s.idx >= len(s.es) {
+			return false
+		}
+		s.idx += 1
+		return true
+	}
+	if ok := s.Cur(e); !ok {
+		return false
+	}
+	s.idx += 1
+	return true
+}
+
+func (s *Scanner) Pervious(e *Element, delta int) bool {
+	idx := s.idx - delta
+	if idx < 0 {
+		return false
+	}
+	*e = s.es[idx]
+	return true
+}
+
+func (s *Scanner) Stop() {
+	s.idx = len(s.es)
+}
+
+func (s *Scanner) Reset() {
+	s.idx = 0
+}
+
+func (s *Scanner) EarlyEnd(expect string) error {
+	return errors.Trace(len(s.line),
+		fmt.Errorf("expect %s, found: 'EOF'", expect))
+}
+
+func (s *Scanner) EarlyEndL(expect string) error {
+	err := s.EarlyEnd(expect)
+	num := s.lineIdx + 1
+	if num < 0 {
+		return err
+	}
+	return errors.Trace(s.lineIdx+1, err)
+}
+
+func (s *Scanner) Line() string {
+	return s.line
+}
+
+func (s *Scanner) Gets() []Element {
+	return s.es
+}
+
+type Element struct {
+	Space bool
+
+	line int
+
+	StringRune rune
+
+	Pos    int
+	Token  Token
+	Indent bool
+	String bool
+}
+
+func (e Element) Get() string {
+	return string(e.Token)
+}
+
+func (e Element) FmtErr(a string, b ...interface{}) error {
+	if e.Pos < 0 {
+		return fmt.Errorf(a, b...)
+	}
+	return errors.TraceFmt(e.Pos, a, b...)
+}
+
+func (e Element) FmtErrL(a string, b ...interface{}) error {
+	err := e.FmtErr(a, b...)
+	if e.line < 0 {
+		return err
+	}
+	return errors.Trace(e.line, err)
+}
+
+func (e Element) NotMatch(expect string) error {
+	return e.FmtErr("expect %s, found: '%s'", expect, e.Type())
+}
+
+func (e Element) NotMatchL(expect string) error {
+	err := e.NotMatch(expect)
+	return errors.Trace(e.line, err)
+}
+
+func (e Element) Type() string {
+	if e.Indent {
+		return "INDENT"
+	}
+	if e.String {
+		return "STRING"
+	}
+	return string(e.Token)
+}

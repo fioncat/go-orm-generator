@@ -4,10 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/fioncat/go-gendb/database/conn"
 	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/log"
+)
+
+var (
+	tableInfo     map[string]Table
+	tableInfoOnce sync.Once
 )
 
 // Session stores the connection to the remote database
@@ -34,6 +40,13 @@ type Session struct {
 	connect ConnectFunc
 }
 
+const (
+	descCacheMem = iota
+	descCacheDisk
+	descCacheNone
+	descCacheNotHit
+)
+
 // Desc is used to describe a data table. It will return
 // some basic information of the data table, including
 // table name, comments, table field information, etc.
@@ -48,29 +61,64 @@ type Session struct {
 // be saved on the disk. The next time you call Desc on the
 // same table, you can use the cache. The cache expiration
 // time defaults to the TABLE_CACHE_TTL variable.
-func (s *Session) Desc(tableName string) (Table, error) {
+func (s *Session) Desc(tableName string) (table Table, err error) {
+	tableInfoOnce.Do(func() {
+		log.Infof("[desc] cacheEnable=%v, cacheTTL=%v",
+			ENABLE_TABLE_CACHE, TABLE_CACHE_TTL)
+		tableInfo = make(map[string]Table)
+	})
+	start := time.Now()
+	var cacheStatus int
+
+	table = tableInfo[tableName]
+	if table != nil {
+		cacheStatus = descCacheMem
+		return
+	}
+	defer func() {
+		if table != nil {
+			var cacheStatusStr string
+			switch cacheStatus {
+			case descCacheNone:
+				cacheStatusStr = "None"
+
+			case descCacheDisk:
+				cacheStatusStr = "Disk"
+
+			case descCacheNotHit:
+				cacheStatusStr = "NotHit"
+			}
+			if cacheStatusStr != "" {
+				log.Infof("[desc] %s, cache=%s, took: %v",
+					tableName, cacheStatusStr, time.Since(start))
+			}
+			tableInfo[tableName] = table
+		}
+	}()
 	if !ENABLE_TABLE_CACHE {
-		return s.oper.Desc(s.db, tableName)
+		cacheStatus = descCacheNone
+		table, err = s.oper.Desc(s.db, tableName)
+		return
 	}
 
 	// try to fetch data from disk.
 	key := fmt.Sprintf("cache.table.%s.%s.%s", s.cfg.Key,
 		s.cfg.Database, tableName)
-	table := getCacheTable(key)
+	table = getCacheTable(key)
 	if table != nil {
-		return table, nil
+		cacheStatus = descCacheDisk
+		return
 	}
 
+	cacheStatus = descCacheNotHit
 	// cache no hit, get table from database
 	// and save to cache
-	var err error
 	table, err = s.oper.Desc(s.db, tableName)
 	if err != nil {
-		return nil, err
+		return
 	}
 	saveCacheTable(key, table)
-
-	return table, nil
+	return
 }
 
 // Check is used to check sql statement, "sql" means the

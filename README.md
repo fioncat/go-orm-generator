@@ -1,12 +1,8 @@
 # go-gendb
 
-[中文README](README_zh.md)
-
 ## Introduction
 
 go-gendb is a tool to generate Go database code. Its basic idea is to separate the database logic (such as SQL statement) and code. go-gendb will link them together.
-
-In addition, go-gendb also contains a tool chan for operating the database.
 
 ## Install
 
@@ -22,28 +18,25 @@ In `go 1.16` and later, you can use the following command to specify the version
 go install github.com/fioncat/go-gendb@version
 ```
 
-## Version
+## Versions
 
-### v0.0.x
+### v0.2.x and before
 
 Early version, you won't use it.
 
-There is no documentation, the code is messy, maybe only I can use it.
+These versions were used for testing early, and they should be sealed in history instead of being used in a production environment. The usage of the earlier version is not compatible with the current version, and there may be many problems. I no longer intend to provide documentation for these versions, so no one but myself may be able to use it anymore.
 
-### v0.1.x
+### v0.3.x
 
-The first version that can be used, but there are many bugs, it is not recommended to use it in a production environment.
+This is the first version I used in the production environment. It has been confirmed to be able to generate some code. Of course, because there are too few people testing it, there may be many potential bugs.
 
-- Support dynamic sql statement.
-- Added tool chain.
-- Code refactoring to optimize performance.
+It can support the following basic functions:
 
-### v0.2.x
-
-The purpose of this version is to make go-gendb available, and it is still under testing. This version is not compatible with `v0.1.x`.
-
-- Optimize storage methods, concurrency, and speed up code generation.
-- Fix bugs.
+- Generate code to call sql statement (including `db.Query`, `db.Exec`, `rows.Scan`, `rows.Close` and other calls), users only need to care about interface definition and sql statement writing.
+- Support inserting `${name}` and `#{name}` placeholders in sql statements to indicate `"?"` and `"%v"` parameters.
+- Support inserting `%{if cond} ... %{endif}` and `%{for ele in slice join 'x'} ... %{endfor}` placeholders in sql statements to write dynamic sql statements . Sql statement splicing code will be automatically generated.
+- Support sql reuse, define some common sql statements and introduce them through `@{name}`.
+- Support deriving its return structure definition based on query statement. This feature needs to connect to the database (to obtain the type of field).
 
 ## Usage
 

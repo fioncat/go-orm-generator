@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fioncat/go-gendb/misc/errors"
 	"github.com/fioncat/go-gendb/misc/term"
 )
 
@@ -354,6 +355,7 @@ func (cmd *Command) Execute(args []string) {
 	err = cmd.Action(v)
 	if err != nil {
 		fmt.Printf("%s %v\n", term.Red("[error]"), err)
+		errors.ShowCompile(err)
 		os.Exit(1)
 	}
 	os.Exit(0)
