@@ -33,7 +33,6 @@ const (
 	LPAREN = Token("(")
 	RPAREN = Token(")")
 
-	PLUS  = Token("+")
 	COLON = Token(":")
 
 	LBRACE = Token("{")
@@ -45,6 +44,7 @@ const (
 	MUL    = Token("*")
 	COMMA  = Token(",")
 	PERIOD = Token(".")
+	PLUS   = Token("+")
 
 	PERCENT = Token("%")
 

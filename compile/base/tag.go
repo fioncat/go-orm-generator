@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/misc/errors"
 )
 
@@ -24,6 +25,10 @@ type Option struct {
 	Value string
 }
 
+var tagTokens = []token.Token{
+	token.EQ,
+}
+
 // +gen:xxx
 const tagPrefix = "+gen:"
 
@@ -33,34 +38,46 @@ func ParseTag(idx int, prefix, line string) (*Tag, error) {
 	}
 	line = strings.TrimPrefix(line, prefix)
 	line = strings.TrimSpace(line)
-	if !strings.HasPrefix(line, tagPrefix) {
+
+	s := token.NewScanner(line, tagTokens)
+	var e token.Element
+
+	ok := s.Next(&e)
+	if !ok {
 		return nil, nil
 	}
-	line = strings.TrimPrefix(line, tagPrefix)
-	tmp := strings.Split(line, " ")
-	if len(tmp) == 0 {
-		return nil, fmt.Errorf("tag body is empty")
+	if !e.Indent {
+		return nil, nil
 	}
+	def := e.Get()
+	if !strings.HasPrefix(def, tagPrefix) {
+		return nil, nil
+	}
+	name := strings.TrimPrefix(def, tagPrefix)
 	tag := new(Tag)
-	tag.Name = tmp[0]
+	tag.Name = name
 	tag.Line = idx + 1
-	tmp = tmp[1:]
-	for _, optStr := range tmp {
-		optTmp := strings.Split(optStr, "=")
+
+	var next token.Element
+	for {
+		ok = s.Next(&e)
+		if !ok {
+			break
+		}
 		var opt Option
-		switch len(optTmp) {
-		case 1:
-			opt.Value = optTmp[0]
-
-		case 2:
-			opt.Key = optTmp[0]
-			opt.Value = optTmp[1]
-
-		default:
-			return nil, fmt.Errorf(`option "%s" is `+
-				`bad format`, optStr)
+		ok = s.Cur(&next)
+		if ok && next.Token == token.EQ {
+			opt.Key = e.Get()
+			s.Next(nil)
+			ok = s.Next(&e)
+			if ok && (e.Indent || e.String) {
+				opt.Value = e.Get()
+			}
+		} else {
+			opt.Value = e.Get()
 		}
 		tag.Options = append(tag.Options, opt)
 	}
+
 	return tag, nil
 }
