@@ -53,7 +53,7 @@ const (
 // These data are returned in the form of the Table interface,
 // see the documentation of the Table interface for details.
 //
-// Note that when the ENABLE_TABLE_CACHE variable is true,
+// Note that when the EnableTableCache variable is true,
 // it means that the table cache will be turned on, and the
 // table data will be read from the local disk first and converted
 // to the Table interface to return. If the disk has no cache
@@ -64,7 +64,7 @@ const (
 func (s *Session) Desc(tableName string) (table Table, err error) {
 	tableInfoOnce.Do(func() {
 		log.Infof("[desc] cacheEnable=%v, cacheTTL=%v",
-			ENABLE_TABLE_CACHE, TABLE_CACHE_TTL)
+			EnableTableCache, TableCacheTTL)
 		tableInfo = make(map[string]Table)
 	})
 	start := time.Now()
@@ -95,7 +95,7 @@ func (s *Session) Desc(tableName string) (table Table, err error) {
 			tableInfo[tableName] = table
 		}
 	}()
-	if !ENABLE_TABLE_CACHE {
+	if !EnableTableCache {
 		cacheStatus = descCacheNone
 		table, err = s.oper.Desc(s.db, tableName)
 		return
