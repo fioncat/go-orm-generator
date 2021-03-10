@@ -1,6 +1,6 @@
 package version
 
 const (
-	Full  = "v0.3.0"
+	Full  = "v0.3.1"
 	Short = "0.3"
 )

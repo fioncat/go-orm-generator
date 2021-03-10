@@ -34,7 +34,7 @@ func Do(arg *Arg) error {
 		log.Init(true, arg.LogPath)
 	}
 	if arg.Cache {
-		rdb.ENABLE_TABLE_CACHE = true
+		rdb.EnableTableCache = true
 	}
 	if arg.CacheTTL != "" {
 		cacheDuration, err := time.ParseDuration(arg.CacheTTL)
@@ -42,7 +42,7 @@ func Do(arg *Arg) error {
 			return fmt.Errorf(`cache-ttl "%s" is bad format`,
 				arg.CacheTTL)
 		}
-		rdb.TABLE_CACHE_TTL = cacheDuration
+		rdb.TableCacheTTL = cacheDuration
 	}
 	data, err := ioutil.ReadFile(arg.Path)
 	if err != nil {

@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/token"
@@ -92,7 +93,7 @@ type sqlVar struct {
 	phEs  []token.Element
 }
 
-var globalVars = make(map[string]*sqlVar)
+var globalVars = new(sync.Map)
 
 func parseNameFromTag(t string, tag *base.Tag) (string, error) {
 	if tag.Name != t {
@@ -134,7 +135,8 @@ func acceptVar(tag *base.Tag) (base.ScanParser, error) {
 	p.sqls = token.EmptyScannerIC(sqlTokens)
 	p.phs = token.EmptyScanner(phTokens)
 
-	if _, ok := globalVars[name]; ok {
+	_, ok := globalVars.Load(name)
+	if ok {
 		return nil, fmt.Errorf(`var "%s" is duplicate`, name)
 	}
 
@@ -160,7 +162,7 @@ func (p *_varParser) Get() interface{} {
 		sqlEs: sqlEs,
 		phEs:  phEs,
 	}
-	globalVars[p.name] = sv
+	globalVars.Store(p.name, sv)
 
 	return nil
 }
@@ -174,6 +176,8 @@ type _sqlParser struct {
 	phs  *token.Scanner
 
 	dyn bool
+
+	tags []*base.Tag
 }
 
 func acceptSql(tag *base.Tag) (base.ScanParser, error) {
@@ -218,11 +222,12 @@ func acceptSql(tag *base.Tag) (base.ScanParser, error) {
 	return p, nil
 }
 
-func (p *_sqlParser) Next(idx int, line string, _ []*base.Tag) (
+func (p *_sqlParser) Next(idx int, line string, tags []*base.Tag) (
 	bool, error,
 ) {
 	p.sqls.AddLine(idx, line)
 	p.phs.AddLine(idx, line)
+	p.tags = append(p.tags, tags...)
 	return true, nil
 }
 
@@ -241,6 +246,7 @@ func (p *_sqlParser) Get() interface{} {
 		return err
 	}
 	m.line = p.line
+	m.Tags = p.tags
 	return m
 }
 
@@ -283,10 +289,11 @@ func parseVars(s *token.Scanner, isSqls bool) (*token.Scanner, error) {
 			return nil, e.FmtErrL("name is empty")
 		}
 		name := strings.Join(nameBucket, "")
-		sqlVar := globalVars[name]
-		if sqlVar == nil {
+		v, ok := globalVars.Load(name)
+		if !ok {
 			return nil, e.FmtErrL(`can not find var "%s"`, name)
 		}
+		sqlVar := v.(*sqlVar)
 		var es []token.Element
 		if isSqls {
 			es = sqlVar.sqlEs

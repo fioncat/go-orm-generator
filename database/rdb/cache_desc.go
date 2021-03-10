@@ -16,13 +16,13 @@ var (
 	// speed of Desc.
 	// The default is closed, if you want to open, you need
 	// to manually modify the variable value.
-	ENABLE_TABLE_CACHE = false
+	EnableTableCache = false
 
 	// The lifetime of the table cache. If the table cache
 	// duration is greater than this value, it will be
 	// invalidated and Desc will retrieve data from the
 	// database again.
-	TABLE_CACHE_TTL = time.Hour * 24
+	TableCacheTTL = time.Hour * 24
 )
 
 // CacheTable represents the structure of the data table
@@ -108,7 +108,7 @@ func saveCacheTable(key string, table Table) {
 	cacheTable := new(CacheTable)
 	cacheTable.fromInter(table)
 
-	err := store.Save(key, cacheTable, TABLE_CACHE_TTL)
+	err := store.Save(key, cacheTable, TableCacheTTL)
 	if err != nil {
 		log.Errorf("save cache failed: key=%s, err=%v",
 			key, err)

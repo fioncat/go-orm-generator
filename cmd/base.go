@@ -9,6 +9,8 @@ import (
 	"github.com/fioncat/go-gendb/cmd/clean"
 	"github.com/fioncat/go-gendb/cmd/conn"
 	"github.com/fioncat/go-gendb/cmd/gen"
+	"github.com/fioncat/go-gendb/cmd/tools/check"
+	"github.com/fioncat/go-gendb/cmd/tools/exec"
 	"github.com/fioncat/go-gendb/misc/cmdt"
 	"github.com/fioncat/go-gendb/version"
 )
@@ -21,6 +23,8 @@ func init() {
 	cmds["gen"] = gen.Cmder
 	cmds["conn"] = conn.Cmder
 	cmds["clean"] = clean.Cmder
+	cmds["check"] = check.Cmder
+	cmds["exec"] = exec.Cmder
 }
 
 func getCmd(name string) *cmdt.Command {
