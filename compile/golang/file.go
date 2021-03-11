@@ -169,8 +169,8 @@ func readLines(path string, lines []string) (*File, error) {
 		}
 		tags = nil
 	}
-	log.Infof("[c] %s, %d inter(s), took: %v",
-		path, len(file.Interfaces), time.Since(start))
+	log.Infof("[compile] [golang] [%v] %s, %d inter(s)",
+		time.Since(start), path, len(file.Interfaces))
 
 	return file, nil
 }

@@ -63,7 +63,7 @@ const (
 // time defaults to the TABLE_CACHE_TTL variable.
 func (s *Session) Desc(tableName string) (table Table, err error) {
 	tableInfoOnce.Do(func() {
-		log.Infof("[desc] cacheEnable=%v, cacheTTL=%v",
+		log.Infof("[database] [desc] cacheEnable=%v, cacheTTL=%v",
 			EnableTableCache, TableCacheTTL)
 		tableInfo = make(map[string]Table)
 	})
@@ -89,8 +89,8 @@ func (s *Session) Desc(tableName string) (table Table, err error) {
 				cacheStatusStr = "NotHit"
 			}
 			if cacheStatusStr != "" {
-				log.Infof("[desc] %s, cache=%s, took: %v",
-					tableName, cacheStatusStr, time.Since(start))
+				log.Infof("[database] [desc] [%v] %s, cache=%s",
+					time.Since(start), tableName, cacheStatusStr)
 			}
 			tableInfo[tableName] = table
 		}

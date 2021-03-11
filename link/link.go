@@ -13,7 +13,9 @@ import (
 )
 
 type linker interface {
-	Do(file *golang.File) ([]coder.Target, error)
+	DefaultConf() map[string]string
+
+	Do(file *golang.File, conf map[string]string) ([]coder.Target, error)
 }
 
 type Result struct {
@@ -39,6 +41,7 @@ func Do(file *golang.File) (*Result, error) {
 		return nil, fmt.Errorf(`can not find `+
 			`linker "%s"`, file.Type)
 	}
+	conf := linker.DefaultConf()
 	res := new(Result)
 	res.Package = file.Package
 	for _, opt := range file.Options {
@@ -71,10 +74,13 @@ func Do(file *golang.File) (*Result, error) {
 
 		case "package":
 			res.Package = opt.Value
+
+		default:
+			conf[opt.Key] = opt.Value
 		}
 	}
 
-	ts, err := linker.Do(file)
+	ts, err := linker.Do(file, conf)
 	if err != nil {
 		return nil, err
 	}

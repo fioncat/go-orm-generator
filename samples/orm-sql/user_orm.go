@@ -1,6 +1,6 @@
 // +gen:sql-orm v=0.3
 // +gen:sql-orm conn=local
-// +gen:sql-orm db=test create_sql=create.sql
+// +gen:sql-orm db=test sql_path=create.sql
 
 package user
 
@@ -11,11 +11,16 @@ type _user struct {
 	// +gen:orm flags=[auto-incr,primary]
 	Id int64 // 用户自增id
 
+	// +gen:orm flags=[notnull]
+	// +gen:orm default="''"
 	Name string // 用户名称
 
+	// +gen:orm type=varchar(11)
+	// +gen:orm flags=[notnull]
 	Phone string // 用户电话号码
 
 	// +gen:orm flags=[unique]
+	// +gen:orm default="'AB123'"
 	Code string // 用户的唯一编码
 
 	// +gen:orm type='tinyint(2)'

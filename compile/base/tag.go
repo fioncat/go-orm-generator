@@ -93,3 +93,27 @@ func ParseTag(idx int, prefix, line string) (*Tag, error) {
 
 	return tag, nil
 }
+
+type DecodeOptionFunc func(line int, val string, vs []interface{}) error
+
+type DecodeOptionMap map[string]DecodeOptionFunc
+
+func DecodeTags(tags []*Tag, name string, doMap DecodeOptionMap, vs ...interface{}) error {
+	for _, tag := range tags {
+		if tag.Name != name {
+			continue
+		}
+		for _, opt := range tag.Options {
+			opt := opt
+			doFunc := doMap[opt.Key]
+			if doFunc == nil {
+				return tag.FmtError(`unknown option "%s"`, opt.Key)
+			}
+			err := doFunc(opt.Line, opt.Value, vs)
+			if err != nil {
+				return opt.Trace(err)
+			}
+		}
+	}
+	return nil
+}

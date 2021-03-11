@@ -16,50 +16,40 @@ import (
 
 type Linker struct{}
 
-type conf struct {
-	dbUse   string
-	runPath string
-	runName string
-}
+const (
+	dbUse   = "db_use"
+	runPath = "run_path"
+	runName = "run_name"
+)
 
-func defaultConf() *conf {
-	return &conf{
+func (*Linker) DefaultConf() map[string]string {
+	return map[string]string{
 		dbUse:   "db",
 		runPath: "github.com/fioncat/go-gendb/api/sql/run",
 		runName: "run",
 	}
 }
 
-func (*Linker) Do(file *golang.File) ([]coder.Target, error) {
+func (*Linker) Do(file *golang.File, conf map[string]string) (
+	[]coder.Target, error,
+) {
 	start := time.Now()
-	// file's global config
-	c := defaultConf()
-	for _, opt := range file.Options {
-		switch opt.Key {
-		case "db_use":
-			c.dbUse = opt.Value
-
-		case "run_path":
-			c.runPath = opt.Value
-
-		case "run_name":
-			c.runName = opt.Value
-		}
-	}
-
 	// Each tagged interface generate one target.
-	ts := make([]coder.Target, len(file.Interfaces))
-	for idx, inter := range file.Interfaces {
+	ts := make([]coder.Target, 0, len(file.Interfaces))
+	for _, inter := range file.Interfaces {
+		if inter.Tag.Name != "sql" {
+			continue
+		}
 		t, err := createTarget(file, inter)
 		if err != nil {
 			return nil, err
 		}
-		t.c = c
-		ts[idx] = t
+		t.conf = conf
+		ts = append(ts, t)
 	}
 
-	log.Infof("[link] %s, %d target(s), took: %v",
-		file.Path, len(ts), time.Since(start))
+	log.Infof("[link] [sql] [%v] %s, %d target(s)",
+		time.Since(start), file.Path, len(ts))
 
 	return ts, nil
 }
@@ -67,20 +57,29 @@ func (*Linker) Do(file *golang.File) ([]coder.Target, error) {
 func createTarget(file *golang.File, inter *golang.Interface) (
 	*target, error,
 ) {
-	name := inter.Tag.Name
 	// import sql method(s)
 	sqlm0 := make(map[string]*sql.Method)
 	sqlm1 := make(map[string]*sql.Method)
 
 	var sqlPaths []string
+	var name string
 	for _, opt := range inter.Tag.Options {
 		if opt.Value == "" {
 			continue
 		}
 		switch opt.Key {
-		case "", "file":
+		case "", "name":
+			name = opt.Value
+
+		case "file":
 			sqlPaths = append(sqlPaths, opt.Value)
 		}
+	}
+	if name == "" {
+		return nil, inter.Tag.FmtError("missing name")
+	}
+	if len(sqlPaths) == 0 {
+		return nil, inter.Tag.FmtError("missing path")
 	}
 
 	for _, sqlPath := range sqlPaths {

@@ -2,54 +2,67 @@ package sql_orm
 
 import (
 	"fmt"
+	"path/filepath"
+	"time"
 
 	"github.com/fioncat/go-gendb/coder"
 	"github.com/fioncat/go-gendb/compile/golang"
 	"github.com/fioncat/go-gendb/compile/orm"
+	"github.com/fioncat/go-gendb/misc/log"
 )
 
-type conf struct {
-	runPath string
-	runName string
-}
-
-func defaultConf() *conf {
-	return &conf{
-		runPath: "github.com/fioncat/go-gendb/api/sql/run",
-		runName: "run",
-	}
-}
+const (
+	runPath = "run_path"
+	runName = "run_name"
+	dbUse   = "db_use"
+	sqlPath = "sql_path"
+)
 
 type Linker struct{}
 
-func (*Linker) Do(gfile *golang.File) ([]coder.Target, error) {
-	file, err := orm.Parse(gfile)
+func (*Linker) DefaultConf() map[string]string {
+	return map[string]string{
+		runPath: "github.com/fioncat/go-gendb/api/sql/run",
+		runName: "run",
+		dbUse:   "db",
+		sqlPath: "",
+		"db":    "",
+	}
+}
+
+func (*Linker) Do(gfile *golang.File, conf map[string]string) (
+	[]coder.Target, error,
+) {
+	start := time.Now()
+	rs, err := orm.Parse(gfile)
 	if err != nil {
 		return nil, err
 	}
 
-	c := defaultConf()
-	for _, opt := range gfile.Options {
-		switch opt.Key {
-		case "run_path":
-			c.runPath = opt.Value
-
-		case "run_name":
-			c.runName = opt.Value
+	if conf[sqlPath] != "" {
+		dir := filepath.Dir(gfile.Path)
+		path := filepath.Join(dir, conf[sqlPath])
+		err = writeCreateTables(conf["db"],
+			path, rs)
+		if err != nil {
+			return nil, err
 		}
+		log.Infof("[linker] [sql-orm] write create sql to %s", path)
 	}
 
-	ts := make([]coder.Target, len(file.Results))
-	for idx, r := range file.Results {
+	ts := make([]coder.Target, len(rs))
+	for idx, r := range rs {
 		t := new(target)
 		t.path = gfile.Path
 		t.r = r
-		t.c = c
+		t.conf = conf
 		t.operName = fmt.Sprintf("%sOper", r.Name)
 		t.operType = fmt.Sprintf("_%s", t.operName)
 
 		ts[idx] = t
 	}
+	log.Infof("[linker] [sql-orm] [%v] %s, %d target(s)",
+		time.Since(start), gfile.Path, len(ts))
 
 	return ts, nil
 }

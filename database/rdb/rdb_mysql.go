@@ -34,7 +34,7 @@ func mysqlConnect(conn *conn.Config) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("connect to database: %s", dsn)
+	log.Infof("[database] [mysql] connect: %s", dsn)
 	return db, nil
 }
 

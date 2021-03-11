@@ -13,7 +13,7 @@ type target struct {
 
 	r *orm.Result
 
-	c *conf
+	conf map[string]string
 
 	operName string
 	operType string
@@ -29,7 +29,7 @@ func (t *target) Path() string {
 
 func (t *target) Imports(ic *coder.Import) {
 	ic.Add("", "database/sql")
-	ic.Add(t.c.runName, t.c.runPath)
+	ic.Add(t.conf[runName], t.conf[runPath])
 }
 
 func (t *target) Vars(c *coder.Var, ic *coder.Import) {
@@ -160,6 +160,7 @@ func (t *target) Structs(sg *coder.StructGroup) {
 }
 
 func (t *target) Funcs(fg *coder.FunctionGroup) {
+
 }
 
 func (t *target) StructNum() int { return 0 }

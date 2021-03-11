@@ -7,18 +7,9 @@ import (
 	"github.com/fioncat/go-gendb/coder"
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/golang"
-	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/errors"
 )
-
-type File struct {
-	Db string
-
-	SqlPath string
-
-	Results []*Result
-}
 
 type Result struct {
 	Name  string
@@ -50,6 +41,7 @@ type Result struct {
 }
 
 type Field struct {
+	NotNull  bool
 	AutoIncr bool
 
 	Comment string
@@ -59,6 +51,8 @@ type Field struct {
 
 	DbName string
 	DbType string
+
+	Default string
 }
 
 type Index struct {
@@ -190,71 +184,170 @@ func (r *Result) parseKeys() error {
 	return nil
 }
 
-func Parse(gfile *golang.File) (*File, error) {
-	file, err := parse(gfile)
+func Parse(gfile *golang.File) ([]*Result, error) {
+	rs, err := parse(gfile)
 	if err != nil {
 		err = errors.Trace(gfile.Path, err)
 		err = errors.OnCompile(gfile.Path, gfile.Lines, err)
 		return nil, err
 	}
-	return file, nil
+	return rs, nil
 }
 
-func parse(gfile *golang.File) (*File, error) {
-	file := new(File)
-	for _, opt := range gfile.Options {
-		switch opt.Key {
-		case "import_table":
-			var table string
-			var name string
-			tmp := strings.Split(opt.Value, ",")
-			switch len(tmp) {
-			case 1:
-				table = tmp[0]
-				name = coder.GoName(table)
-
-			case 2:
-				table = tmp[0]
-				name = tmp[1]
-
-			default:
-				return nil, opt.FmtError(`import `+
-					`table "%s" is bad format`, opt.Value)
-			}
-			r, err := fromDatabase(table, name)
-			if err != nil {
-				return nil, opt.FmtError(err.Error())
-			}
-			file.Results = append(file.Results, r)
-
-		case "db":
-			file.Db = opt.Value
-
-		case "sql_path":
-			file.SqlPath = opt.Value
-		}
-	}
-
-	for _, stc := range gfile.Structs {
+func parse(gfile *golang.File) ([]*Result, error) {
+	rs := make([]*Result, len(gfile.Structs))
+	for idx, stc := range gfile.Structs {
 		r, err := parseStruct(stc)
 		if err != nil {
 			return nil, err
 		}
-		file.Results = append(file.Results, r)
+		rs[idx] = r
 	}
 
-	if len(file.Results) == 0 {
+	for _, opt := range gfile.Options {
+		if opt.Key != "import_table" {
+			continue
+		}
+		arrs, err := base.Arr2(opt.Value)
+		if err != nil {
+			return nil, opt.Trace(err)
+		}
+		for _, arr := range arrs {
+			var table string
+			var name string
+			switch len(arr) {
+			case 1:
+				table = arr[0]
+				name = coder.GoName(table)
+
+			case 2:
+				table = arr[0]
+				name = arr[1]
+
+			default:
+				return nil, opt.FmtError(`import_table "%s" is bad format`)
+			}
+			r, err := fromDatabase(table, name)
+			if err != nil {
+				return nil, opt.Trace(err)
+			}
+			rs = append(rs, r)
+		}
+	}
+
+	if len(rs) == 0 {
 		return nil, fmt.Errorf("no orm to generate")
 	}
 
-	return file, nil
+	return rs, nil
+}
+
+var structOptionMap = map[string]base.DecodeOptionFunc{
+	"table": func(_ int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		r.Table = val
+		return nil
+	},
+
+	"name": func(_ int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		r.Name = val
+		return nil
+	},
+
+	"primary": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		arr, err := base.Arr1(val)
+		if err != nil {
+			return err
+		}
+		for _, name := range arr {
+			r.addPk(line, name)
+		}
+		return nil
+	},
+
+	"index": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		arrs, err := base.Arr2(val)
+		if err != nil {
+			return err
+		}
+		for _, arr := range arrs {
+			r.addIdx(line, arr)
+		}
+		return nil
+	},
+
+	"unique": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		arrs, err := base.Arr2(val)
+		if err != nil {
+			return err
+		}
+		for _, arr := range arrs {
+			r.addUnique(line, arr)
+		}
+		return nil
+	},
+}
+
+var fieldOptionMap = map[string]base.DecodeOptionFunc{
+	"flags": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		f := vs[1].(*Field)
+		flags, err := base.Arr1(val)
+		if err != nil {
+			return err
+		}
+		for _, flag := range flags {
+			switch flag {
+			case "auto-incr":
+				f.AutoIncr = true
+
+			case "primary":
+				r.addPk(line, f.GoName)
+
+			case "notnull":
+				f.NotNull = true
+
+			case "index":
+				r.addIdx(line, []string{f.GoName})
+
+			case "unique":
+				r.addUnique(line, []string{f.GoName})
+
+			default:
+				return fmt.Errorf(`unknown flag "%s"`, flag)
+			}
+		}
+		return nil
+	},
+
+	"name": func(line int, val string, vs []interface{}) error {
+		f := vs[1].(*Field)
+		f.DbName = val
+		return nil
+	},
+
+	"type": func(line int, val string, vs []interface{}) error {
+		f := vs[1].(*Field)
+		f.DbType = val
+		return nil
+	},
+
+	"default": func(line int, val string, vs []interface{}) error {
+		f := vs[1].(*Field)
+		f.Default = val
+		return nil
+	},
 }
 
 func parseStruct(stc *golang.Struct) (*Result, error) {
 	r := newResult(stc.Name, len(stc.Fields))
 	r.line = stc.Line
 	r.Comment = stc.Comment
-	err := parseTags(r, nil, stc.Tags, parseStructOption)
+	err := base.DecodeTags(stc.Tags, "orm", structOptionMap, r)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +360,7 @@ func parseStruct(stc *golang.Struct) (*Result, error) {
 		rf.GoName = gf.Name
 		rf.GoType = gf.Type
 		rf.Comment = gf.Comment
-		err = parseTags(r, rf, gf.Tags, parseFieldOption)
+		err = base.DecodeTags(gf.Tags, "orm", fieldOptionMap, r, rf)
 		if err != nil {
 			return nil, err
 		}
@@ -286,164 +379,4 @@ func parseStruct(stc *golang.Struct) (*Result, error) {
 	}
 
 	return r, nil
-}
-
-type parseAction func(r *Result, f *Field, opt *base.Option) error
-
-func parseTags(r *Result, f *Field, tags []*base.Tag, parse parseAction) error {
-	for _, tag := range tags {
-		if tag.Name != "orm" {
-			continue
-		}
-		for _, opt := range tag.Options {
-			opt := opt
-			err := parse(r, f, &opt)
-			if err != nil {
-				return opt.Trace(err)
-			}
-		}
-	}
-	return nil
-}
-
-func parseStructOption(r *Result, _ *Field, opt *base.Option) error {
-	switch opt.Key {
-	case "table":
-		r.Table = opt.Value
-
-	case "name":
-		r.Name = opt.Value
-
-	case "index":
-		arrs, err := parse2larray(opt.Value)
-		if err != nil {
-			return err
-		}
-		for _, names := range arrs {
-			r.addIdx(opt.Line, names)
-		}
-
-	case "unique":
-		arrs, err := parse2larray(opt.Value)
-		if err != nil {
-			return err
-		}
-		for _, names := range arrs {
-			r.addUnique(opt.Line, names)
-		}
-
-	case "pk":
-		arr, err := parse1larray(opt.Value)
-		if err != nil {
-			return err
-		}
-		for _, name := range arr {
-			r.addPk(opt.Line, name)
-		}
-
-	default:
-		return fmt.Errorf(`unknown option "%s"`, opt.Key)
-	}
-	return nil
-}
-
-func parseFieldOption(r *Result, f *Field, opt *base.Option) error {
-	switch opt.Key {
-	case "flags":
-		flags, err := parse1larray(opt.Value)
-		if err != nil {
-			return err
-		}
-		for _, flag := range flags {
-			switch flag {
-			case "primary":
-				r.addPk(opt.Line, f.GoName)
-
-			case "auto-incr":
-				f.AutoIncr = true
-
-			case "index":
-				r.addIdx(opt.Line, []string{f.GoName})
-
-			case "unique":
-				r.addUnique(opt.Line, []string{f.GoName})
-
-			default:
-				return fmt.Errorf(`unknown flag "%s"`, flag)
-			}
-		}
-
-	case "type":
-		f.DbType = strings.ToUpper(opt.Value)
-
-	case "name":
-		f.DbName = opt.Value
-
-	default:
-		return fmt.Errorf(`unknown option "%s"`, opt.Key)
-	}
-	return nil
-}
-
-var arrTokens = []token.Token{
-	token.LBRACK, token.RBRACK,
-	token.COMMA,
-}
-
-func parse2larray(val string) ([][]string, error) {
-	s := token.NewScanner(val, arrTokens)
-	var arrs [][]string
-	var e token.Element
-	for s.Next(&e) {
-		if e.Token == token.COMMA {
-			continue
-		}
-		if e.Token != token.LBRACK {
-			return nil, e.NotMatch("LBRACK")
-		}
-		var names []string
-		for {
-			ok := s.Next(&e)
-			if !ok {
-				return nil, s.EarlyEnd("RBRACK")
-			}
-			if e.Token == token.RBRACK {
-				break
-			}
-			if e.Token == token.COMMA {
-				continue
-			}
-			names = append(names, e.Get())
-		}
-		arrs = append(arrs, names)
-	}
-	return arrs, nil
-}
-
-func parse1larray(val string) ([]string, error) {
-	s := token.NewScanner(val, arrTokens)
-	var arr []string
-	var e token.Element
-	ok := s.Next(&e)
-	if !ok {
-		return nil, s.EarlyEnd("LBRACK")
-	}
-	if e.Token != token.LBRACK {
-		return nil, e.NotMatch("LBRACK")
-	}
-
-	for {
-		ok = s.Next(&e)
-		if !ok {
-			return nil, s.EarlyEnd("RBRACK")
-		}
-		if e.Token == token.RBRACK {
-			break
-		}
-		if e.Token == token.COMMA {
-			continue
-		}
-		arr = append(arr, e.Get())
-	}
-	return arr, nil
 }
