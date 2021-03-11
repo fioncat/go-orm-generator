@@ -8,6 +8,7 @@ import (
 	"github.com/fioncat/go-gendb/compile/golang"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/link/internal/sql"
+	"github.com/fioncat/go-gendb/link/internal/sql_orm"
 	"github.com/fioncat/go-gendb/misc/errors"
 )
 
@@ -27,6 +28,8 @@ var linkers map[string]linker
 func init() {
 	linkers = map[string]linker{
 		"sql": &sql.Linker{},
+
+		"sql-orm": &sql_orm.Linker{},
 	}
 }
 

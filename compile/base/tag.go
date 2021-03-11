@@ -21,8 +21,19 @@ func (t *Tag) FmtError(a string, b ...interface{}) error {
 }
 
 type Option struct {
+	Line int
+
 	Key   string
 	Value string
+}
+
+func (o *Option) Trace(err error) error {
+	return errors.Trace(o.Line, err)
+}
+
+func (o *Option) FmtError(a string, b ...interface{}) error {
+	err := fmt.Errorf(a, b...)
+	return errors.Trace(o.Line, err)
 }
 
 var tagTokens = []token.Token{
@@ -76,6 +87,7 @@ func ParseTag(idx int, prefix, line string) (*Tag, error) {
 		} else {
 			opt.Value = e.Get()
 		}
+		opt.Line = tag.Line
 		tag.Options = append(tag.Options, opt)
 	}
 

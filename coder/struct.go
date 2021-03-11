@@ -6,6 +6,20 @@ import (
 	"strings"
 )
 
+type StructGroup struct {
+	ss []*Struct
+}
+
+func (sg *StructGroup) Add() *Struct {
+	s := new(Struct)
+	sg.ss = append(sg.ss, s)
+	return s
+}
+
+func (sg *StructGroup) Gets() []*Struct {
+	return sg.ss
+}
+
 type Struct struct {
 	comm string
 	name string

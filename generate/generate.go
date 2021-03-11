@@ -112,6 +112,18 @@ func gen(res *link.Result, t coder.Target) (*coder.Coder, error) {
 	t.Vars(varCoder, importCoder)
 	c.AddSub(varCoder)
 
+	sg := new(coder.StructGroup)
+	t.Structs(sg)
+	for _, s := range sg.Gets() {
+		c.AddSub(s)
+	}
+
+	fg := new(coder.FunctionGroup)
+	t.Funcs(fg)
+	for _, f := range fg.Gets() {
+		c.AddSub(f)
+	}
+
 	for idx := 0; idx < t.StructNum(); idx++ {
 		structCoder := new(coder.Struct)
 		t.Struct(idx, structCoder, importCoder)

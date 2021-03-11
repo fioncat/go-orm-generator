@@ -430,3 +430,7 @@ func assign(rets []string) string {
 	}
 	return strings.Join(ss, ", ")
 }
+
+func (t *target) Structs(sg *coder.StructGroup) {}
+
+func (t *target) Funcs(fg *coder.FunctionGroup) {}

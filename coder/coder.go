@@ -92,3 +92,20 @@ func joins(vs []interface{}) string {
 	}
 	return strings.Join(strs, "")
 }
+
+func DbName(name string) string {
+	rs := []rune(name)
+	result := make([]rune, 0, len(rs))
+	for idx, r := range rs {
+		if unicode.IsUpper(r) {
+			lr := unicode.ToLower(r)
+			if idx != 0 {
+				result = append(result, '_')
+			}
+			result = append(result, lr)
+			continue
+		}
+		result = append(result, r)
+	}
+	return string(result)
+}

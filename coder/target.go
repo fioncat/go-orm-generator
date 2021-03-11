@@ -10,6 +10,9 @@ type Target interface {
 
 	Consts(c *Var, imp *Import)
 
+	Structs(c *StructGroup)
+	Funcs(c *FunctionGroup)
+
 	StructNum() int
 	Struct(idx int, c *Struct, imp *Import)
 

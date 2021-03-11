@@ -141,6 +141,10 @@ func (s *Session) GoType(sqlType string) string {
 	return s.oper.ConvertType(sqlType)
 }
 
+func (s *Session) SqlType(goType string) string {
+	return s.oper.SqlType(goType)
+}
+
 // Query directly uses the session's database connection
 // to execute a SQL query statement.
 func (s *Session) Query(sql string, vs ...interface{}) (*sql.Rows, error) {
@@ -207,6 +211,8 @@ type dbOper interface {
 	// ConvertType is a specific implementation of converting
 	// database type to Go type.
 	ConvertType(sqlType string) string
+
+	SqlType(goType string) string
 }
 
 // Table describes the information of the RDB data table.
