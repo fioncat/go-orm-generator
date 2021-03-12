@@ -6,7 +6,6 @@ package user
 
 // 用户表
 // +gen:orm table=user name="User"
-// +gen:orm index=[Name,Phone],[CreateDate]
 type _user struct {
 	// +gen:orm flags=[auto-incr,primary]
 	Id int64 // 用户自增id
@@ -28,4 +27,20 @@ type _user struct {
 	IsDelete bool // 用户是否被删除
 
 	CreateDate int64 // 用户创建时间
+}
+
+// 用户详情表
+// +gen:orm table=user_detail name=Detail
+type _detail struct {
+	// +gen:orm flags=[auto-incr,primary]
+	Id int64
+
+	// +gen:orm flags=[unique]
+	UserId int64
+
+	Text string
+
+	Balance int32
+
+	Score int32
 }

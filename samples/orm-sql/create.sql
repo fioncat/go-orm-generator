@@ -20,9 +20,21 @@ CREATE TABLE `user` (
 
   UNIQUE INDEX `unique_user_Code`(`code`),
 
-  INDEX `index_user_Name_Phone`(`name`,`phone`),
-  INDEX `index_user_CreateDate`(`create_date`),
   INDEX `index_user_Name`(`name`),
   INDEX `index_user_Phone`(`phone`)
 
 ) ENGINE=InnoDB COMMENT '用户表';
+
+CREATE TABLE `user_detail` (
+
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint DEFAULT NULL,
+  `text` varchar(256) DEFAULT NULL,
+  `balance` int DEFAULT NULL,
+  `score` int DEFAULT NULL,
+
+  PRIMARY KEY (`id`),
+
+  UNIQUE INDEX `unique_user_detail_UserId`(`user_id`)
+
+) ENGINE=InnoDB COMMENT '用户详情表';
