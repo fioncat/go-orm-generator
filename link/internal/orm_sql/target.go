@@ -1,4 +1,4 @@
-package sql_orm
+package orm_sql
 
 import (
 	"fmt"

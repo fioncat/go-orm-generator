@@ -1,4 +1,4 @@
-package sql_orm
+package orm_sql
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ func (*Linker) Do(gfile *golang.File, conf map[string]string) (
 	[]coder.Target, error,
 ) {
 	start := time.Now()
-	rs, err := orm.Parse(gfile)
+	rs, err := orm.Parse(gfile, false)
 	if err != nil {
 		return nil, err
 	}

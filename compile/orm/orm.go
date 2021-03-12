@@ -7,6 +7,7 @@ import (
 	"github.com/fioncat/go-gendb/coder"
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/golang"
+	"github.com/fioncat/go-gendb/compile/token"
 	"github.com/fioncat/go-gendb/database/rdb"
 	"github.com/fioncat/go-gendb/misc/errors"
 )
@@ -25,6 +26,8 @@ type Result struct {
 
 	Indexes []*Index
 
+	Db bool
+
 	line int
 
 	dbMap map[string]*Field
@@ -38,6 +41,8 @@ type Result struct {
 
 	primayNames []string
 	pkLines     []int
+
+	origin *golang.Struct
 }
 
 type Field struct {
@@ -184,8 +189,8 @@ func (r *Result) parseKeys() error {
 	return nil
 }
 
-func Parse(gfile *golang.File) ([]*Result, error) {
-	rs, err := parse(gfile)
+func Parse(gfile *golang.File, mgo bool) ([]*Result, error) {
+	rs, err := parse(gfile, mgo)
 	if err != nil {
 		err = errors.Trace(gfile.Path, err)
 		err = errors.OnCompile(gfile.Path, gfile.Lines, err)
@@ -194,7 +199,7 @@ func Parse(gfile *golang.File) ([]*Result, error) {
 	return rs, nil
 }
 
-func parse(gfile *golang.File) ([]*Result, error) {
+func parse(gfile *golang.File, mgo bool) ([]*Result, error) {
 	rs := make([]*Result, len(gfile.Structs))
 	for idx, stc := range gfile.Structs {
 		r, err := parseStruct(stc)
@@ -203,9 +208,12 @@ func parse(gfile *golang.File) ([]*Result, error) {
 		}
 		rs[idx] = r
 	}
+	if mgo {
+		replaceGoType(rs)
+	}
 
 	for _, opt := range gfile.Options {
-		if opt.Key != "import_table" {
+		if mgo || opt.Key != "import_table" {
 			continue
 		}
 		arrs, err := base.Arr2(opt.Value)
@@ -341,12 +349,21 @@ var fieldOptionMap = map[string]base.DecodeOptionFunc{
 		f.Default = val
 		return nil
 	},
+
+	"db": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		if val == "true" {
+			r.Db = true
+		}
+		return nil
+	},
 }
 
 func parseStruct(stc *golang.Struct) (*Result, error) {
 	r := newResult(stc.Name, len(stc.Fields))
 	r.line = stc.Line
 	r.Comment = stc.Comment
+	r.origin = stc
 	err := base.DecodeTags(stc.Tags, "orm", structOptionMap, r)
 	if err != nil {
 		return nil, err
@@ -379,4 +396,54 @@ func parseStruct(stc *golang.Struct) (*Result, error) {
 	}
 
 	return r, nil
+}
+
+func replaceGoType(rs []*Result) {
+	typeMap := make(map[string]string, len(rs))
+	for _, r := range rs {
+		if r.origin == nil {
+			continue
+		}
+		name := r.Name
+		oriName := r.origin.Name
+		if name == oriName {
+			continue
+		}
+		typeMap[oriName] = name
+	}
+
+	for _, r := range rs {
+		for _, f := range r.Fields {
+			t := parseGoType(f.GoType, typeMap)
+			f.GoType = t
+		}
+	}
+}
+
+const _map = token.Token("map")
+
+var goTypeTokens = []token.Token{
+	token.LBRACK, token.RBRACK,
+	token.MUL,
+
+	_map,
+}
+
+func parseGoType(goType string, typeMap map[string]string) string {
+	s := token.NewScanner(goType, goTypeTokens)
+	var e token.Element
+	var tmp []string
+	for s.Next(&e) {
+		if !e.Indent {
+			tmp = append(tmp, e.Get())
+			continue
+		}
+		newType, ok := typeMap[e.Get()]
+		if !ok {
+			tmp = append(tmp, e.Get())
+			continue
+		}
+		tmp = append(tmp, newType)
+	}
+	return strings.Join(tmp, "")
 }

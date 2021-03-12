@@ -1,6 +1,6 @@
-// +gen:sql-orm v=0.3
-// +gen:sql-orm conn=local
-// +gen:sql-orm db=test sql_path=create.sql
+// +gen:orm-sql v=0.3
+// +gen:orm-sql conn=local
+// +gen:orm-sql db=test sql_path=create.sql
 
 package user
 

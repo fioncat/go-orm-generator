@@ -9,6 +9,8 @@ import (
 )
 
 type Arg struct {
+	Mgo bool `flag:"mgo"`
+
 	Conn string `arg:"conn"`
 	Path string `arg:"path"`
 }
@@ -30,7 +32,7 @@ var Cmder = &cmdt.Command{
 			return err
 		}
 
-		file, err := orm.Parse(gfile)
+		file, err := orm.Parse(gfile, arg.Mgo)
 		if err != nil {
 			return err
 		}
