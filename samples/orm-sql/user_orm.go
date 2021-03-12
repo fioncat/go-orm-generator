@@ -11,12 +11,12 @@ type _user struct {
 	// +gen:orm flags=[auto-incr,primary]
 	Id int64 // 用户自增id
 
-	// +gen:orm flags=[notnull]
+	// +gen:orm flags=[notnull,index]
 	// +gen:orm default="''"
 	Name string // 用户名称
 
 	// +gen:orm type=varchar(11)
-	// +gen:orm flags=[notnull]
+	// +gen:orm flags=[notnull,index]
 	Phone string // 用户电话号码
 
 	// +gen:orm flags=[unique]

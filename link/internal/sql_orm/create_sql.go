@@ -40,7 +40,7 @@ func createTable(c *coder.Coder, r *orm.Result) {
 		_, isId := idMap[f.GoName]
 		sb := new(stringBuilder)
 		sb.Append("`" + f.DbName + "`")
-		sb.Append(f.DbType)
+		sb.Append(strings.ToLower(f.DbType))
 		if f.NotNull || isId {
 			sb.Append("NOT NULL")
 		}

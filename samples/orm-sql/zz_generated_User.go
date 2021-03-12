@@ -6,6 +6,8 @@ package user
 import (
 	sql "database/sql"
 	run "github.com/fioncat/go-gendb/api/sql/run"
+	strings "strings"
+	fmt "fmt"
 )
 
 const (
@@ -18,15 +20,21 @@ const (
 )
 
 const (
-	_User_InsertOne   = "INSERT INTO `user`(`name`,`phone`,`code`,`is_removed`,`create_date`) VALUES (?,?,?,?,?,?)"
-	_User_InsertBatch = "INSERT INTO `user`(`name`,`phone`,`code`,`is_removed`,`create_date`) VALUES %s"
-	_User_FindById    = "SELECT `id`,`name`,`phone`,`code`,`is_removed`,`create_date` FROM `user` WHERE `id`=?"
-	_User_DeleteById  = "DELETE FROM `user` WHERE `id`=?"
-	_User_UpdateById  = "UPDATE `user` SET `name`=?,`phone`=?,`code`=?,`is_removed`=?,`create_date`=? WHERE `id`=?"
-	_User_Count       = "SELECT COUNT(1) FROM `user`"
+	_User_InsertOne    = "INSERT INTO `user`(`name`,`phone`,`code`,`is_removed`,`create_date`) VALUES (?,?,?,?,?)"
+	_User_InsertBatch  = "INSERT INTO `user`(`name`,`phone`,`code`,`is_removed`,`create_date`) VALUES %s"
+	_User_InsertValues = "(?,?,?,?,?)"
+	_User_FindById     = "SELECT `id`,`name`,`phone`,`code`,`is_removed`,`create_date` FROM `user` WHERE `id`=?"
+	_User_DeleteById   = "DELETE FROM `user` WHERE `id`=?"
+	_User_UpdateById   = "UPDATE `user` SET `name`=?,`phone`=?,`code`=?,`is_removed`=?,`create_date`=? WHERE `id`=?"
+	_User_Count        = "SELECT COUNT(1) FROM `user`"
 )
 
 const _User_FindOneByCode = "SELECT `id`,`name`,`phone`,`code`,`is_removed`,`create_date` FROM `user` WHERE `code`=?"
+
+const (
+	_User_FindManyByName  = "SELECT `id`,`name`,`phone`,`code`,`is_removed`,`create_date` FROM `user` WHERE `name`=?"
+	_User_FindManyByPhone = "SELECT `id`,`name`,`phone`,`code`,`is_removed`,`create_date` FROM `user` WHERE `phone`=?"
+)
 
 var UserOper = &_UserOper{}
 
@@ -40,4 +48,82 @@ type User struct {
 	Code       string `field:"code"`
 	IsDelete   bool   `field:"is_removed"`
 	CreateDate int64  `field:"create_date"`
+}
+
+func (*_UserOper) Insert(db run.IDB, o *User) (sql.Result, error) {
+	return run.Exec(db, _User_InsertOne, nil, []interface{}{o.Name, o.Phone, o.Code, o.IsDelete, o.CreateDate})
+}
+
+func (*_UserOper) InsertBatch(db run.IDB, os []*User) (sql.Result, error) {
+	vs := make([]interface{}, 0, 6*len(os))
+	valStrs := make([]string, len(os))
+	for idx, o := range os {
+		valStrs[idx] = _User_InsertValues
+		vs = append(vs, o.Name, o.Phone, o.Code, o.IsDelete, o.CreateDate)
+	}
+	valStr := strings.Join(valStrs, ", ")
+	_sql := fmt.Sprintf(_User_InsertBatch, valStr)
+	return run.Exec(db, _sql, nil, vs)
+}
+
+func (*_UserOper) FindById(db run.IDB, id int64) (*User, error) {
+	var o *User
+	err := run.QueryOne(db, _User_FindById, nil, []interface{}{id}, func(rows *sql.Rows) error {
+		o = new(User)
+		return rows.Scan(&o.Id, &o.Name, &o.Phone, &o.Code, &o.IsDelete, &o.CreateDate)
+	})
+	return o, err
+}
+
+func (*_UserOper) DeleteById(db run.IDB, id int64) (sql.Result, error) {
+	return run.Exec(db, _User_DeleteById, nil, []interface{}{id})
+}
+
+func (*_UserOper) UpdateById(db run.IDB, o *User) (sql.Result, error) {
+	return run.Exec(db, _User_UpdateById, nil, []interface{}{o.Name, o.Phone, o.Code, o.IsDelete, o.CreateDate, o.Id})
+}
+
+func (*_UserOper) Count(db run.IDB) (int64, error) {
+	var cnt int64
+	err := run.QueryOne(db, _User_Count, nil, nil, func(rows *sql.Rows) error {
+		return rows.Scan(&cnt)
+	})
+	return cnt, err
+}
+
+func (*_UserOper) FindOneByCode(db run.IDB, code string) (*User, error) {
+	var o *User
+	err := run.QueryOne(db, _User_FindOneByCode, nil, []interface{}{code}, func(rows *sql.Rows) error {
+		o = new(User)
+		return rows.Scan(&o.Id, &o.Name, &o.Phone, &o.Code, &o.IsDelete, &o.CreateDate)
+	})
+	return o, err
+}
+
+func (*_UserOper) FindManyByName(db run.IDB, name string) ([]*User, error) {
+	var os []*User
+	err := run.QueryMany(db, _User_FindManyByName, nil, []interface{}{name}, func(rows *sql.Rows) error {
+		o := new(User)
+		err := rows.Scan(&o.Id, &o.Name, &o.Phone, &o.Code, &o.IsDelete, &o.CreateDate)
+		if err != nil {
+			return err
+		}
+		os = append(os, o)
+		return nil
+	})
+	return os, err
+}
+
+func (*_UserOper) FindManyByPhone(db run.IDB, phone string) ([]*User, error) {
+	var os []*User
+	err := run.QueryMany(db, _User_FindManyByPhone, nil, []interface{}{phone}, func(rows *sql.Rows) error {
+		o := new(User)
+		err := rows.Scan(&o.Id, &o.Name, &o.Phone, &o.Code, &o.IsDelete, &o.CreateDate)
+		if err != nil {
+			return err
+		}
+		os = append(os, o)
+		return nil
+	})
+	return os, err
 }

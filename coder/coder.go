@@ -80,9 +80,19 @@ func Export(s string) string {
 		return ""
 	}
 	if len(s) == 1 {
-		return string(unicode.ToLower(rune(s[0])))
+		return string(unicode.ToUpper(rune(s[0])))
 	}
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
+}
+
+func UnExport(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	if len(s) == 1 {
+		return string(unicode.ToLower(rune(s[0])))
+	}
+	return string(unicode.ToLower(rune(s[0]))) + s[1:]
 }
 
 func joins(vs []interface{}) string {
