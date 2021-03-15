@@ -61,7 +61,7 @@ func (*Linker) Do(gfile *golang.File, conf map[string]string) (
 
 		ts[idx] = t
 	}
-	log.Infof("[linker] [sql-orm] [%v] %s, %d target(s)",
+	log.Infof("[linker] [orm-sql] [%v] %s, %d target(s)",
 		time.Since(start), gfile.Path, len(ts))
 
 	return ts, nil

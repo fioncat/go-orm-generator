@@ -46,7 +46,7 @@ func (t *target) Consts(c *coder.Var, ic *coder.Import) {
 	gp := c.NewGroup()
 	var valsCnt int
 	for idx, f := range t.r.Fields {
-		constName := fmt.Sprintf("%s%sField", t.r.Name, f.GoName)
+		constName := fmt.Sprintf("%sField%s", t.r.Name, f.GoName)
 		gp.Add(constName, coder.Quote(f.DbName))
 
 		name := fmt.Sprintf("`%s`", f.DbName)

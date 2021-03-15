@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	DetailIdField      = "id"
-	DetailUserIdField  = "user_id"
-	DetailTextField    = "text"
-	DetailBalanceField = "balance"
-	DetailScoreField   = "score"
+	DetailFieldId      = "id"
+	DetailFieldUserId  = "user_id"
+	DetailFieldText    = "text"
+	DetailFieldBalance = "balance"
+	DetailFieldScore   = "score"
 )
 
 const (

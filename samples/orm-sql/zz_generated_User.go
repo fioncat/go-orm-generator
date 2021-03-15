@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	UserIdField         = "id"
-	UserNameField       = "name"
-	UserPhoneField      = "phone"
-	UserCodeField       = "code"
-	UserIsDeleteField   = "is_removed"
-	UserCreateDateField = "create_date"
+	UserFieldId         = "id"
+	UserFieldName       = "name"
+	UserFieldPhone      = "phone"
+	UserFieldCode       = "code"
+	UserFieldIsDelete   = "is_removed"
+	UserFieldCreateDate = "create_date"
 )
 
 const (

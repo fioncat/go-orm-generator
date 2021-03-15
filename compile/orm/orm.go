@@ -48,6 +48,7 @@ type Result struct {
 type Field struct {
 	NotNull  bool
 	AutoIncr bool
+	Sort     bool
 
 	Comment string
 
@@ -99,7 +100,7 @@ func fromDatabase(tableName, name string) (*Result, error) {
 
 		r.addField(rf)
 	}
-	err = r.parseKeys()
+	err = r.parseKeys(false)
 	if err != nil {
 		// Never trigger, prevent
 		return nil, fmt.Errorf("[parseKeyInImportDb] %v", err)
@@ -158,7 +159,29 @@ func (r *Result) getIndexes(keyNames [][]string, lines []int) (
 	return idxes, nil
 }
 
-func (r *Result) parseKeys() error {
+func (r *Result) parseKeys(mgo bool) error {
+	var err error
+	if !mgo {
+		err = r.sqlPk()
+		if err != nil {
+			return err
+		}
+	}
+
+	r.UniqueKeys, err = r.getIndexes(r.uqNames, r.uqLines)
+	if err != nil {
+		return err
+	}
+
+	r.Indexes, err = r.getIndexes(r.idxNames, r.idxLines)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Result) sqlPk() error {
 	pk := new(Index)
 	for idx, pkName := range r.primayNames {
 		f := r.fieldByName(pkName)
@@ -174,18 +197,6 @@ func (r *Result) parseKeys() error {
 			"missing primary key")
 	}
 	r.PrimaryKey = pk
-
-	var err error
-	r.UniqueKeys, err = r.getIndexes(r.uqNames, r.uqLines)
-	if err != nil {
-		return err
-	}
-
-	r.Indexes, err = r.getIndexes(r.idxNames, r.idxLines)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -202,7 +213,7 @@ func Parse(gfile *golang.File, mgo bool) ([]*Result, error) {
 func parse(gfile *golang.File, mgo bool) ([]*Result, error) {
 	rs := make([]*Result, len(gfile.Structs))
 	for idx, stc := range gfile.Structs {
-		r, err := parseStruct(stc)
+		r, err := parseStruct(stc, mgo)
 		if err != nil {
 			return nil, err
 		}
@@ -298,6 +309,14 @@ var structOptionMap = map[string]base.DecodeOptionFunc{
 		}
 		return nil
 	},
+
+	"db": func(line int, val string, vs []interface{}) error {
+		r := vs[0].(*Result)
+		if val == "true" {
+			r.Db = true
+		}
+		return nil
+	},
 }
 
 var fieldOptionMap = map[string]base.DecodeOptionFunc{
@@ -350,16 +369,14 @@ var fieldOptionMap = map[string]base.DecodeOptionFunc{
 		return nil
 	},
 
-	"db": func(line int, val string, vs []interface{}) error {
-		r := vs[0].(*Result)
-		if val == "true" {
-			r.Db = true
-		}
+	"sort": func(line int, val string, vs []interface{}) error {
+		f := vs[1].(*Field)
+		f.Sort = true
 		return nil
 	},
 }
 
-func parseStruct(stc *golang.Struct) (*Result, error) {
+func parseStruct(stc *golang.Struct, mgo bool) (*Result, error) {
 	r := newResult(stc.Name, len(stc.Fields))
 	r.line = stc.Line
 	r.Comment = stc.Comment
@@ -384,13 +401,13 @@ func parseStruct(stc *golang.Struct) (*Result, error) {
 		if rf.DbName == "" {
 			rf.DbName = coder.DbName(rf.GoName)
 		}
-		if rf.DbType == "" {
+		if rf.DbType == "" && !mgo {
 			rf.DbType = rdb.Get().SqlType(rf.GoType)
 		}
 		r.addField(rf)
 	}
 
-	err = r.parseKeys()
+	err = r.parseKeys(mgo)
 	if err != nil {
 		return nil, err
 	}
