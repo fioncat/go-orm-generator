@@ -25,6 +25,10 @@ type Method struct {
 	Tags []*base.Tag
 }
 
+func (m *Method) LineIdx() int {
+	return m.line - 1
+}
+
 func (m *Method) FmtError(a string, b ...interface{}) error {
 	err := fmt.Errorf(a, b...)
 	return errors.Trace(m.line, err)

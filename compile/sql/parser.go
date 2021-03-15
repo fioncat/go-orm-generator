@@ -7,6 +7,7 @@ import (
 
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/token"
+	"github.com/fioncat/go-gendb/misc/errors"
 )
 
 const (
@@ -232,6 +233,9 @@ func (p *_sqlParser) Next(idx int, line string, tags []*base.Tag) (
 }
 
 func (p *_sqlParser) Get() interface{} {
+	if p.sqls.Empty() || p.phs.Empty() {
+		return errors.TraceFmt(p.line, "method is empty")
+	}
 	sqls, err := parseVars(p.sqls, true)
 	if err != nil {
 		return err

@@ -1,5 +1,6 @@
 -- +gen:sql v=0.3
 
+
 -- 根据商品id, 获取这个商品的所有sku id和基本信息
 -- +gen:method Gets
 SELECT
@@ -41,7 +42,6 @@ WHERE
 -- +gen:end
 
 
-
 -- 获取属性关联产品图的关系. 对于新商品中心, 属性图实际上就是
 -- 产品图, 不过通过这张关联表创建关联关系. 这里获取这个关系以
 -- 确定属性图.
@@ -71,6 +71,7 @@ WHERE
 	AND languages_id IN (#{langCodes});
 -- +gen:end
 
+
 -- 获取sku属性值的多语言标题
 -- +gen:method GetPropValTitles dyn=true
 SELECT
@@ -96,4 +97,3 @@ FROM
 WHERE
 	sku_id=${skuId}
 -- +gen:end
-

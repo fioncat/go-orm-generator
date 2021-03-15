@@ -13,6 +13,8 @@ import (
 const commPrefix = "--"
 
 type File struct {
+	Lines []string
+
 	Path string
 
 	Methods []*Method
@@ -39,6 +41,7 @@ func ReadLines(path string, lines []string) (*File, error) {
 		err = errors.Trace(path, err)
 		return nil, errors.OnCompile(path, lines, err)
 	}
+	file.Lines = lines
 	return file, nil
 }
 

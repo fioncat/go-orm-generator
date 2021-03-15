@@ -123,6 +123,10 @@ func CopyScanner(os *Scanner, es []Element) *Scanner {
 	return s
 }
 
+func (s *Scanner) LinesIdx() int {
+	return s.lineIdx
+}
+
 func (s *Scanner) Empty() bool {
 	if s == nil {
 		return true
