@@ -63,7 +63,11 @@ func (s *Struct) code(c *Coder) bool {
 			}
 			tagStr = strings.Join(ts, " ")
 		}
-		c.P(1, name, " ", _type, " `", tagStr, "`")
+		if tagStr != "" {
+			c.P(1, name, " ", _type, " `", tagStr, "`")
+		} else {
+			c.P(1, name, " ", _type)
+		}
 	}
 	c.P(0, "}")
 

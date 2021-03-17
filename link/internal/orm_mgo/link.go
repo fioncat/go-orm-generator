@@ -12,7 +12,9 @@ import (
 type Linker struct{}
 
 func (*Linker) DefaultConf() map[string]string {
-	return map[string]string{}
+	return map[string]string{
+		"sess_use": "sess",
+	}
 }
 
 func (*Linker) Do(gfile *golang.File, conf map[string]string) (
@@ -30,6 +32,11 @@ func (*Linker) Do(gfile *golang.File, conf map[string]string) (
 		t.path = gfile.Path
 		t.r = r
 		t.conf = conf
+		dbName := conf["db"]
+		if dbName == "" {
+			dbName = gfile.Package
+		}
+		t.dbName = dbName
 		ts[idx] = t
 	}
 	log.Infof("[linker] [orm-mgo] [%v] %s, %d target(s)",

@@ -322,7 +322,10 @@ func (t *target) funcDef(f *coder.Function, name string, params []string, ret st
 		def += "db run.IDB"
 	}
 	if len(params) > 0 {
-		def += ", " + strings.Join(params, ", ")
+		if dbUse == "db" {
+			def += ", "
+		}
+		def += strings.Join(params, ", ")
 	}
 	def += ") "
 	def += fmt.Sprintf("(%s, error)", ret)
