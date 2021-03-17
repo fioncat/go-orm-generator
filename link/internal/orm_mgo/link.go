@@ -13,7 +13,8 @@ type Linker struct{}
 
 func (*Linker) DefaultConf() map[string]string {
 	return map[string]string{
-		"sess_use": "sess",
+		"sess_use":    "sess",
+		"mgoapi_path": "github.com/fioncat/go-gendb/api/mgo",
 	}
 }
 

@@ -32,6 +32,7 @@ func (t *target) Imports(ic *coder.Import) {
 	}
 	ic.Add("", "gopkg.in/mgo.v2/bson")
 	ic.Add("mgo", "gopkg.in/mgo.v2")
+	ic.Add("mgoapi", t.conf["mgoapi_path"])
 }
 
 func (t *target) Consts(c *coder.Var, ic *coder.Import) {
@@ -75,6 +76,9 @@ func (t *target) Consts(c *coder.Var, ic *coder.Import) {
 }
 
 func (t *target) Vars(c *coder.Var, ic *coder.Import) {
+	if !t.r.Db {
+		return
+	}
 	gp := c.NewGroup()
 	gp.Add(t.r.Name+"Oper", "&_", t.r.Name, "Oper{}")
 }
@@ -106,9 +110,7 @@ func (t *target) Structs(c *coder.StructGroup) {
 	s = c.Add()
 	s.SetName(t.r.Name + "Query")
 	f := s.AddField()
-	f.Set("mq", "*mgo.Query")
-	f = s.AddField()
-	f.Set("sess", "*mgo.Session")
+	f.Set("", "*mgoapi.Query")
 }
 
 func (t *target) Funcs(c *coder.FunctionGroup) {
@@ -127,6 +129,53 @@ func (t *target) Funcs(c *coder.FunctionGroup) {
 
 	operName := t.r.Name + "Oper"
 
+	if len(t.r.Indexes) == 0 && len(t.r.UniqueKeys) == 0 {
+		goto skipIndex
+	}
+	// Ensure Indexes
+	f = c.Add()
+	if sessUse == "sess" {
+		f.Def("Ensure"+t.r.Name+"Indexes",
+			"Ensure"+t.r.Name+"Indexes(sess *mgo.Session) error")
+	} else {
+		f.Def("Ensure"+t.r.Name+"Indexes",
+			"Ensure"+t.r.Name+"Indexes() error")
+	}
+	f.P(0, "_sess, col := ", operName, ".GetCol(", colParam, ")")
+	f.P(0, "defer _sess.Close()")
+	for _, idx := range t.r.Indexes {
+		names := make([]string, len(idx.Fields))
+		for idx, field := range idx.Fields {
+			names[idx] = t.r.Name + "Field" + field.GoName
+		}
+		f.P(0, "if err := col.EnsureIndex(mgo.Index{")
+		f.P(1, "Key:        []string{", strings.Join(names, ","), "},")
+		f.P(1, "Background: true,")
+		f.P(1, "Sparse:     true,")
+		f.P(0, "}); err != nil {")
+		f.P(1, "return err")
+		f.P(0, "}")
+		f.P(0, "")
+	}
+	for _, idx := range t.r.UniqueKeys {
+		names := make([]string, len(idx.Fields))
+		for idx, field := range idx.Fields {
+			names[idx] = t.r.Name + "Field" + field.GoName
+		}
+		f.P(0, "if err := col.EnsureIndex(mgo.Index{")
+		f.P(1, "Key:        []string{", strings.Join(names, ","), "},")
+		f.P(1, "Background: true,")
+		f.P(1, "Unique:     true,")
+		f.P(1, "Sparse:     true,")
+		f.P(0, "}); err != nil {")
+		f.P(1, "return err")
+		f.P(0, "}")
+		f.P(0, "")
+	}
+	f.P(0, "return nil")
+
+skipIndex:
+
 	f = c.Add()
 	t.funcDef(false, f, "Save", nil, []string{"*mgo.ChangeInfo", "error"})
 	f.P(0, "sess, col := ", operName, ".GetCol(", colParam, ")")
@@ -134,40 +183,26 @@ func (t *target) Funcs(c *coder.FunctionGroup) {
 	f.P(0, "return col.UpsertId(o.Id, o)")
 
 	f = c.Add()
-	f.Def("Select", "(q *", t.r.Name, "Query) Select(fields ...string) *", t.r.Name, "Query")
-	f.P(0, "m := make(bson.M, len(fields))")
-	f.P(0, "for _, field := range fields {")
-	f.P(1, "m[field] = 1")
-	f.P(0, "}")
-	f.P(0, "q.mq.Select(m)")
-	f.P(0, "return q")
-
-	f = c.Add()
-	f.Def("Limit", "(q *", t.r.Name, "Query) Limit(offset, limit int) *", t.r.Name, "Query")
-	f.P(0, "if limit > 0 {")
-	f.P(1, "q.mq.Limit(limit)")
-	f.P(0, "}")
-	f.P(0, "if offset > 0 {")
-	f.P(1, "q.mq.Skip(offset)")
-	f.P(0, "}")
-	f.P(0, "return q")
-
-	f = c.Add()
-	f.Def("Sort", "(q *", t.r.Name, "Query) Sort(fields ...string) *", t.r.Name, "Query")
-	f.P(0, "q.mq.Sort(fields...)")
-	f.P(0, "return q")
-
-	f = c.Add()
 	f.Def("All", "(q *", t.r.Name, "Query) All() (os []*", t.r.Name, ", err error)")
-	f.P(0, "defer q.sess.Close()")
-	f.P(0, "err = q.mq.All(&os)")
+	f.P(0, "err = q.MarshalAll(&os)")
 	f.P(0, "return")
 
 	f = c.Add()
 	f.Def("One", "(q *", t.r.Name, "Query) One() (o *", t.r.Name, ", err error)")
-	f.P(0, "defer q.sess.Close()")
-	f.P(0, "err = q.mq.One(&o)")
+	f.P(0, "err = q.MarshalOne(&o)")
 	f.P(0, "return")
+
+	f = c.Add()
+	f.Def("Walk", "(q *", t.r.Name, "Query) Walk(walkFunc func(o *", t.r.Name, ") error) error")
+	f.P(0, "iter := q.Iter()")
+	f.P(0, "var o *", t.r.Name)
+	f.P(0, "for iter.Next(&o) {")
+	f.P(1, "err := walkFunc(o)")
+	f.P(1, "if err != nil {")
+	f.P(2, "return err")
+	f.P(1, "}")
+	f.P(0, "}")
+	f.P(0, "return iter.Err()")
 
 	f = c.Add()
 	t.funcDef(true, f, "GetCol", nil, []string{"*mgo.Session", "*mgo.Collection"})
@@ -178,7 +213,7 @@ func (t *target) Funcs(c *coder.FunctionGroup) {
 	t.funcDef(true, f, "Find", []string{"query interface{}"}, []string{"*" + t.r.Name + "Query"})
 	f.P(0, "_sess, col := oper.GetCol(", colParam, ")")
 	f.P(0, "mq := col.Find(query)")
-	f.P(0, "return &", t.r.Name, "Query{mq: mq, sess: _sess}")
+	f.P(0, "return &", t.r.Name, "Query{Query: mgoapi.NewQuery(mq, _sess)}")
 
 	f = c.Add()
 	t.funcDef(true, f, "FindById", []string{"id string"}, []string{"*" + t.r.Name, "error"})
@@ -190,6 +225,80 @@ func (t *target) Funcs(c *coder.FunctionGroup) {
 	f.P(0, "var o *", t.r.Name)
 	f.P(0, "err := col.FindId(bson.ObjectIdHex(id)).One(&o)")
 	f.P(0, "return o, err")
+
+	f = c.Add()
+	t.funcDef(true, f, "CountE", []string{"query interface{}"}, []string{"int", "error"})
+	f.P(0, "_sess, col := oper.GetCol(", colParam, ")")
+	f.P(0, "defer _sess.Close()")
+	f.P(0, "return col.Find(query).Count()")
+
+	f = c.Add()
+	t.funcDef(true, f, "Count", []string{"query interface{}"}, []string{"int"})
+	if sessUse == "sess" {
+		f.P(0, "cnt, _ := oper.CountE(sess, query)")
+	} else {
+		f.P(0, "cnt, _ := oper.CountE(query)")
+	}
+	f.P(0, "return cnt")
+
+	f = c.Add()
+	t.funcDef(true, f, "Remove", []string{"query interface{}"}, []string{"*mgo.ChangeInfo", "error"})
+	f.P(0, "_sess, col := oper.GetCol(", colParam, ")")
+	f.P(0, "defer _sess.Close()")
+	f.P(0, "return col.RemoveAll(query)")
+
+	f = c.Add()
+	t.funcDef(true, f, "RemoveById", []string{"id string"}, []string{"error"})
+	f.P(0, "_sess, col := oper.GetCol(", colParam, ")")
+	f.P(0, "defer _sess.Close()")
+	f.P(0, "if !bson.IsObjectIdHex(id) {")
+	f.P(1, "return mgo.ErrNotFound")
+	f.P(0, "}")
+	f.P(0, "return col.RemoveId(bson.ObjectIdHex(id))")
+
+	// Indexes(single)
+	for _, idx := range t.r.Indexes {
+		if len(idx.Fields) != 1 {
+			continue
+		}
+		field := idx.Fields[0]
+		if strings.Contains(field.GoName, "Time") ||
+			strings.Contains(field.GoName, "Date") {
+			continue
+		}
+		f = c.Add()
+		pName := coder.UnExport(field.GoName)
+		t.funcDef(true, f, "FindManyBy"+field.GoName, []string{
+			fmt.Sprintf("%s %s", pName, field.GoType)}, []string{"[]*" + t.r.Name, "error"})
+		if sessUse == "sess" {
+			f.P(0, "q := oper.Find(sess, bson.M{", t.r.Name, "Field", field.GoName, ": ", pName, "})")
+		} else {
+			f.P(0, "q := oper.Find(bson.M{", t.r.Name, "Field", field.GoName, ": ", pName, "})")
+		}
+		f.P(0, "return q.All()")
+	}
+
+	// Uniques(single)
+	for _, idx := range t.r.UniqueKeys {
+		if len(idx.Fields) != 1 {
+			continue
+		}
+		field := idx.Fields[0]
+		if strings.Contains(field.GoName, "Time") ||
+			strings.Contains(field.GoName, "Date") {
+			continue
+		}
+		f = c.Add()
+		pName := coder.UnExport(field.GoName)
+		t.funcDef(true, f, "FindOneBy"+field.GoName, []string{
+			fmt.Sprintf("%s %s", pName, field.GoType)}, []string{"*" + t.r.Name, "error"})
+		if sessUse == "sess" {
+			f.P(0, "q := oper.Find(sess, bson.M{", t.r.Name, "Field", field.GoName, ": ", pName, "})")
+		} else {
+			f.P(0, "q := oper.Find(bson.M{", t.r.Name, "Field", field.GoName, ": ", pName, "})")
+		}
+		f.P(0, "return q.One()")
+	}
 }
 
 func (t *target) funcDef(isOper bool, f *coder.Function, name string, params []string, rets []string) {

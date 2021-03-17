@@ -11,8 +11,6 @@ const (
 	SkuAttrFieldPropValueName = "prop_value_name"
 )
 
-var SkuAttrOper = &_SkuAttrOper{}
-
 type SkuAttr struct {
 	PropId        string            `bson:"prop_id" json:"prop_id"`
 	PropValueId   string            `bson:"prop_value_id" json:"prop_value_id"`

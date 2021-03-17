@@ -2,11 +2,15 @@ package base
 
 import "github.com/fioncat/go-gendb/compile/token"
 
+// tokens uses in arrary string.
 var arrTokens = []token.Token{
 	token.LBRACK, token.RBRACK,
 	token.COMMA,
 }
 
+// Arr2 compiles a two-dimensional array and converts it
+// into a built-in two-dimensional slice.
+// The format is "[[a, b, c], [d, e], [f]]"
 func Arr2(val string) ([][]string, error) {
 	s := token.NewScanner(val, arrTokens)
 	var arrs [][]string
@@ -37,6 +41,8 @@ func Arr2(val string) ([][]string, error) {
 	return arrs, nil
 }
 
+// Arr1 compiles the array and converts it to the built-in
+// slice. The format is "[a, b, c, d, e]"
 func Arr1(val string) ([]string, error) {
 	s := token.NewScanner(val, arrTokens)
 	var arr []string

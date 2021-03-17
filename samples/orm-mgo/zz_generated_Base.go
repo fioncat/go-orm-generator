@@ -6,6 +6,7 @@ package item
 import (
 	bson "gopkg.in/mgo.v2/bson"
 	mgo "gopkg.in/mgo.v2"
+	mgoapi "github.com/fioncat/go-gendb/api/mgo"
 )
 
 const (
@@ -19,9 +20,13 @@ const (
 	BaseFieldParentGpid = "parent_gpid"
 	BaseFieldInSale     = "in_sale"
 	BaseFieldAttrs      = "attrs"
+	BaseFieldUpdateDate = "update_date"
 )
 
-const BaseSortIDDesc = "-_id"
+const (
+	BaseSortIDDesc         = "-_id"
+	BaseSortUpdateDateDesc = "-update_date"
+)
 
 var BaseOper = &_BaseOper{}
 
@@ -31,17 +36,48 @@ type Base struct {
 	ParentGpid int64         `bson:"parent_gpid" json:"parent_gpid"`
 	InSale     bool          `bson:"in_sale" json:"in_sale"`
 	Attrs      []*SkuAttr    `bson:"attrs" json:"attrs"`
+	UpdateDate int64         `bson:"update_date" json:"update_date"`
 }
 
 type _BaseOper struct {}
 
 type BaseQuery struct {
-	mq   *mgo.Query
-	sess *mgo.Session
+	 *mgoapi.Query
 }
 
 func (o *Base) Id() string {
 	return o.ID.Hex()
+}
+
+func EnsureBaseIndexes(sess *mgo.Session) error {
+	_sess, col := BaseOper.GetCol(sess)
+	defer _sess.Close()
+	if err := col.EnsureIndex(mgo.Index{
+		Key:        []string{BaseFieldParentGpid},
+		Background: true,
+		Sparse:     true,
+	}); err != nil {
+		return err
+	}
+
+	if err := col.EnsureIndex(mgo.Index{
+		Key:        []string{BaseFieldUpdateDate},
+		Background: true,
+		Sparse:     true,
+	}); err != nil {
+		return err
+	}
+
+	if err := col.EnsureIndex(mgo.Index{
+		Key:        []string{BaseFieldGpid},
+		Background: true,
+		Unique:     true,
+		Sparse:     true,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (o *Base) Save(sess *mgo.Session) (*mgo.ChangeInfo, error) {
@@ -50,40 +86,26 @@ func (o *Base) Save(sess *mgo.Session) (*mgo.ChangeInfo, error) {
 	return col.UpsertId(o.Id, o)
 }
 
-func (q *BaseQuery) Select(fields ...string) *BaseQuery {
-	m := make(bson.M, len(fields))
-	for _, field := range fields {
-		m[field] = 1
-	}
-	q.mq.Select(m)
-	return q
-}
-
-func (q *BaseQuery) Limit(offset, limit int) *BaseQuery {
-	if limit > 0 {
-		q.mq.Limit(limit)
-	}
-	if offset > 0 {
-		q.mq.Skip(offset)
-	}
-	return q
-}
-
-func (q *BaseQuery) Sort(fields ...string) *BaseQuery {
-	q.mq.Sort(fields...)
-	return q
-}
-
 func (q *BaseQuery) All() (os []*Base, err error) {
-	defer q.sess.Close()
-	err = q.mq.All(&os)
+	err = q.MarshalAll(&os)
 	return
 }
 
 func (q *BaseQuery) One() (o *Base, err error) {
-	defer q.sess.Close()
-	err = q.mq.One(&o)
+	err = q.MarshalOne(&o)
 	return
+}
+
+func (q *BaseQuery) Walk(walkFunc func(o *Base) error) error {
+	iter := q.Iter()
+	var o *Base
+	for iter.Next(&o) {
+		err := walkFunc(o)
+		if err != nil {
+			return err
+		}
+	}
+	return iter.Err()
 }
 
 func (oper *_BaseOper) GetCol(sess *mgo.Session) (*mgo.Session, *mgo.Collection) {
@@ -94,7 +116,7 @@ func (oper *_BaseOper) GetCol(sess *mgo.Session) (*mgo.Session, *mgo.Collection)
 func (oper *_BaseOper) Find(sess *mgo.Session, query interface{}) *BaseQuery {
 	_sess, col := oper.GetCol(sess)
 	mq := col.Find(query)
-	return &BaseQuery{mq: mq, sess: _sess}
+	return &BaseQuery{Query: mgoapi.NewQuery(mq, _sess)}
 }
 
 func (oper *_BaseOper) FindById(sess *mgo.Session, id string) (*Base, error) {
@@ -106,4 +128,40 @@ func (oper *_BaseOper) FindById(sess *mgo.Session, id string) (*Base, error) {
 	var o *Base
 	err := col.FindId(bson.ObjectIdHex(id)).One(&o)
 	return o, err
+}
+
+func (oper *_BaseOper) CountE(sess *mgo.Session, query interface{}) (int, error) {
+	_sess, col := oper.GetCol(sess)
+	defer _sess.Close()
+	return col.Find(query).Count()
+}
+
+func (oper *_BaseOper) Count(sess *mgo.Session, query interface{}) int {
+	cnt, _ := oper.CountE(sess, query)
+	return cnt
+}
+
+func (oper *_BaseOper) Remove(sess *mgo.Session, query interface{}) (*mgo.ChangeInfo, error) {
+	_sess, col := oper.GetCol(sess)
+	defer _sess.Close()
+	return col.RemoveAll(query)
+}
+
+func (oper *_BaseOper) RemoveById(sess *mgo.Session, id string) error {
+	_sess, col := oper.GetCol(sess)
+	defer _sess.Close()
+	if !bson.IsObjectIdHex(id) {
+		return mgo.ErrNotFound
+	}
+	return col.RemoveId(bson.ObjectIdHex(id))
+}
+
+func (oper *_BaseOper) FindManyByParentGpid(sess *mgo.Session, parentGpid int64) ([]*Base, error) {
+	q := oper.Find(sess, bson.M{BaseFieldParentGpid: parentGpid})
+	return q.All()
+}
+
+func (oper *_BaseOper) FindOneByGpid(sess *mgo.Session, gpid int64) (*Base, error) {
+	q := oper.Find(sess, bson.M{BaseFieldGpid: gpid})
+	return q.One()
 }
