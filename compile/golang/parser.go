@@ -8,6 +8,9 @@ import (
 	"github.com/fioncat/go-gendb/compile/token"
 )
 
+// isGoSimpleType returns whether t is a simple type,
+// for example: int32, int64, float64, string. Note that
+// slice and map do not belong to it.
 func isGoSimpleType(t string) bool {
 	switch {
 	case strings.HasPrefix(t, "int"):
@@ -29,6 +32,7 @@ func isGoSimpleType(t string) bool {
 	return false
 }
 
+// Go keywords that need to be concerned, not all keywords here.
 const (
 	_package   = token.Token("package")
 	_import    = token.Token("import")
@@ -39,28 +43,41 @@ const (
 )
 
 var (
+	// Uses to parse multi-line import:
+	//   import (
+	//     [{name}] {path}
+	//     ...
+	//   )
 	_importsTokens = []token.Token{
 		_import,
 		token.LPAREN,
 		token.RPAREN,
 	}
 
+	// Uses to parse struct definition:
+	//   type {name} struct {
 	_structTokens = []token.Token{
 		_type,
 		_struct,
 		token.LBRACE,
 	}
 
+	// Uses to parse field definition:
+	//   {name} {field} [// {comment}]
 	_fieldTokens = []token.Token{
 		_comment,
 	}
 
+	// Uses to parse interface definition:
+	//   type {name} interface {
 	_interfaceTokens = []token.Token{
 		_type,
 		_interface,
 		token.LBRACE,
 	}
 
+	// Uses to parse method in interface:
+	//   {name}({param}) [{ret}]
 	_methodTokens = []token.Token{
 		token.LPAREN,
 		token.RPAREN,
@@ -72,12 +89,16 @@ var (
 	}
 )
 
+// _packageParser uses to parse package definition:
+//   package {name}
 type _packageParser struct{}
 
+// Accept returns whether line is a package definition line.
 func (*_packageParser) Accept(line string) bool {
 	return _package.PrefixOf(line)
 }
 
+// Do parse package line and returns the package name(string).
 func (*_packageParser) Do(line string) (interface{}, error) {
 	line = _package.Trim(line)
 	if line == "" {
@@ -86,12 +107,16 @@ func (*_packageParser) Do(line string) (interface{}, error) {
 	return line, nil
 }
 
+// _singleImportParser uses to parse single-line import content.
+//  import [{name}] {path}
 type _singleImportParser struct{}
 
+// Accept returns whether line is a import line.
 func (*_singleImportParser) Accept(line string) bool {
 	return _import.PrefixOf(line)
 }
 
+// Do parse the import line, returns *Import pointer.
 func (*_singleImportParser) Do(line string) (interface{}, error) {
 	line = _import.Trim(line)
 	if line == "" {
@@ -102,6 +127,7 @@ func (*_singleImportParser) Do(line string) (interface{}, error) {
 	imp := new(Import)
 	switch len(eles) {
 	case 1:
+		// no name: "{path}"
 		e := eles[0]
 		if !e.String {
 			return nil, e.NotMatch("STRING")
@@ -109,6 +135,7 @@ func (*_singleImportParser) Do(line string) (interface{}, error) {
 		imp.Path = e.Get()
 
 	case 2:
+		// name and path: {name} "{path}"
 		alias := eles[0]
 		path := eles[1]
 		if !alias.Indent {
@@ -121,16 +148,25 @@ func (*_singleImportParser) Do(line string) (interface{}, error) {
 		imp.Path = path.Get()
 
 	default:
+		// invalid
 		return nil, fmt.Errorf("import statement bad format")
 	}
 
 	return imp, nil
 }
 
+// _multiPathsParser parse multi-lines import:
+//   import (
+//     [{name}] {path}
+//     ...
+//   )
 type _multiPathsParser struct {
 	imps []*Import
 }
 
+// If line is the beginning of a multi-line import, return
+// the parser; otherwise, return nil. The condition is whether
+// the line is "import ("
 func acceptPaths(line string) base.ScanParser {
 	tmp := strings.Fields(line)
 	if len(tmp) <= 1 {
