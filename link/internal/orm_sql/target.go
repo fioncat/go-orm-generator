@@ -9,6 +9,9 @@ import (
 )
 
 type target struct {
+	coder.NoStructNum
+	coder.NoFuncNum
+
 	path string
 
 	r *orm.Result
@@ -331,11 +334,3 @@ func (t *target) funcDef(f *coder.Function, name string, params []string, ret st
 	def += fmt.Sprintf("(%s, error)", ret)
 	f.Def(name, def)
 }
-
-func (t *target) StructNum() int { return 0 }
-
-func (t *target) Struct(idx int, c *coder.Struct, ic *coder.Import) {}
-
-func (t *target) FuncNum() int { return 0 }
-
-func (t *target) Func(idx int, c *coder.Function, ic *coder.Import) {}

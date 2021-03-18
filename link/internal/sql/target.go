@@ -11,6 +11,9 @@ import (
 )
 
 type target struct {
+	coder.NoStructs
+	coder.NoFuncs
+
 	conf map[string]string
 
 	file *golang.File
@@ -430,7 +433,3 @@ func assign(rets []string) string {
 	}
 	return strings.Join(ss, ", ")
 }
-
-func (t *target) Structs(sg *coder.StructGroup) {}
-
-func (t *target) Funcs(fg *coder.FunctionGroup) {}

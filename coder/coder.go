@@ -85,6 +85,14 @@ func Export(s string) string {
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
 }
 
+func IsExport(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	h := rune(s[0])
+	return unicode.IsUpper(h)
+}
+
 func UnExport(s string) string {
 	if len(s) == 0 {
 		return ""

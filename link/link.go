@@ -5,8 +5,10 @@ import (
 	"strings"
 
 	"github.com/fioncat/go-gendb/coder"
+	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/golang"
 	"github.com/fioncat/go-gendb/database/rdb"
+	"github.com/fioncat/go-gendb/link/internal/convert"
 	"github.com/fioncat/go-gendb/link/internal/orm_mgo"
 	"github.com/fioncat/go-gendb/link/internal/orm_sql"
 	"github.com/fioncat/go-gendb/link/internal/sql"
@@ -19,6 +21,10 @@ type linker interface {
 	Do(file *golang.File, conf map[string]string) ([]coder.Target, error)
 }
 
+type extractLinker interface {
+	Do(s *golang.Struct, opts []base.Option) ([]coder.Target, error)
+}
+
 type Result struct {
 	Targets []coder.Target
 	Imports []golang.Import
@@ -26,7 +32,10 @@ type Result struct {
 	Package string
 }
 
-var linkers map[string]linker
+var (
+	linkers   map[string]linker
+	exLinkers map[string]extractLinker
+)
 
 func init() {
 	linkers = map[string]linker{
@@ -34,6 +43,12 @@ func init() {
 
 		"orm-sql": &orm_sql.Linker{},
 		"orm-mgo": &orm_mgo.Linker{},
+
+		"common": &emptyLinker{},
+	}
+
+	exLinkers = map[string]extractLinker{
+		"convert": &convert.Linker{},
 	}
 }
 
@@ -44,6 +59,9 @@ func Do(file *golang.File) (*Result, error) {
 			`linker "%s"`, file.Type)
 	}
 	conf := linker.DefaultConf()
+	if conf == nil {
+		conf = make(map[string]string)
+	}
 	res := new(Result)
 	res.Package = file.Package
 	for _, opt := range file.Options {
@@ -87,6 +105,25 @@ func Do(file *golang.File) (*Result, error) {
 		return nil, err
 	}
 	res.Targets = ts
+
+	for _, stc := range file.Structs {
+		optsGroup := make(map[string][]base.Option, len(stc.Tags))
+		for _, tag := range stc.Tags {
+			optsGroup[tag.Name] = append(optsGroup[tag.Name],
+				tag.Options...)
+		}
+		for name, opts := range optsGroup {
+			exLinker := exLinkers[name]
+			if exLinker == nil {
+				continue
+			}
+			ts, err := exLinker.Do(stc, opts)
+			if err != nil {
+				return nil, err
+			}
+			res.Targets = append(res.Targets, ts...)
+		}
+	}
 
 	return res, nil
 }

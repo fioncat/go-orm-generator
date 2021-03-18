@@ -59,9 +59,26 @@ type Struct struct {
 }
 
 type Field struct {
+	Line int
+
 	Name    string
 	Type    string
 	Comment string
 
 	Tags []*base.Tag
+}
+
+type TypeFlag struct {
+	Slice   bool
+	Map     bool
+	Pointer bool
+
+	Simple bool
+
+	Import string
+
+	Key string
+
+	Name string
+	Full string
 }

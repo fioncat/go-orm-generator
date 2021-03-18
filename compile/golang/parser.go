@@ -8,10 +8,10 @@ import (
 	"github.com/fioncat/go-gendb/compile/token"
 )
 
-// isGoSimpleType returns whether t is a simple type,
+// IsSimpleType returns whether t is a simple type,
 // for example: int32, int64, float64, string. Note that
 // slice and map do not belong to it.
-func isGoSimpleType(t string) bool {
+func IsSimpleType(t string) bool {
 	switch {
 	case strings.HasPrefix(t, "int"):
 		return true
@@ -40,6 +40,7 @@ const (
 	_interface = token.Token("interface")
 	_struct    = token.Token("struct")
 	_comment   = token.Token("//")
+	_map       = token.Token("map")
 )
 
 var (
@@ -86,6 +87,11 @@ var (
 		token.MUL,
 		token.COMMA,
 		token.PERIOD,
+	}
+
+	_typeFlagTokens = []token.Token{
+		token.LBRACK, token.RBRACK, token.MUL,
+		token.PERIOD, _map,
 	}
 )
 
@@ -291,6 +297,7 @@ func (p *_structParser) Next(idx int, line string, tags []*base.Tag) (
 		f.Comment = strings.Join(tmp, " ")
 	}
 	f.Tags = tags
+	f.Line = idx + 1
 
 	p.Struct.Fields = append(p.Struct.Fields, f)
 
@@ -495,7 +502,7 @@ func (p *_interfaceParser) Next(idx int, line string, tags []*base.Tag) (bool, e
 		return false, e.NotMatch("RPAREN")
 	}
 
-	if isGoSimpleType(method.RetType) {
+	if IsSimpleType(method.RetType) {
 		method.RetSimple = true
 	}
 	p.inter.Methods = append(p.inter.Methods, method)
@@ -505,4 +512,120 @@ func (p *_interfaceParser) Next(idx int, line string, tags []*base.Tag) (bool, e
 
 func (p *_interfaceParser) Get() interface{} {
 	return p.inter
+}
+
+func ParseTypeFlag(t string) (*TypeFlag, error) {
+	tf := new(TypeFlag)
+	tf.Full = t
+	if IsSimpleType(t) {
+		tf.Simple = true
+		tf.Name = t
+		return tf, nil
+	}
+
+	s := token.NewScanner(t, _typeFlagTokens)
+	var e token.Element
+
+	ok := s.Next(&e)
+	if !ok {
+		return nil, s.EarlyEnd("TOKEN")
+	}
+	var err error
+	switch e.Token {
+	case token.LBRACK:
+		err = _typeSlice(s, tf)
+
+	case _map:
+		err = _typeMap(s, tf)
+
+	default:
+		err = _typeIndent(s, tf)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if IsSimpleType(tf.Name) {
+		tf.Simple = true
+	}
+	return tf, nil
+}
+
+func _typeSlice(s *token.Scanner, tf *TypeFlag) error {
+	var e token.Element
+	ok := s.Next(&e)
+	if !ok {
+		return s.EarlyEnd("RBRACK")
+	}
+	if e.Token != token.RBRACK {
+		return e.NotMatch("RBRACK")
+	}
+	tf.Slice = true
+
+	return _typeIndent(s, tf)
+}
+
+func _typeMap(s *token.Scanner, tf *TypeFlag) error {
+	var e token.Element
+	ok := s.Next(&e)
+	if !ok {
+		return s.EarlyEnd("LBRACK")
+	}
+	if e.Token != token.LBRACK {
+		return e.NotMatch("LBRACK")
+	}
+	ok = s.Next(&e)
+	if !ok {
+		return s.EarlyEnd("INDENT")
+	}
+	if !e.Indent {
+		return e.NotMatch("INDENT")
+	}
+	tf.Key = e.Get()
+
+	return _typeIndent(s, tf)
+}
+
+func _typeIndent(s *token.Scanner, tf *TypeFlag) error {
+	var first string
+	var e token.Element
+	ok := s.Next(&e)
+	if !ok {
+		return s.EarlyEnd("TOKEN")
+	}
+	if !e.Indent {
+		if e.Token != token.MUL {
+			return e.NotMatch("MUL")
+		}
+		tf.Pointer = true
+		ok = s.Next(&e)
+		if !ok {
+			return s.EarlyEnd("INDENT")
+		}
+	}
+
+	if !e.Indent {
+		return e.NotMatch("INDENT")
+	}
+	first = e.Get()
+
+	ok = s.Next(&e)
+	if !ok {
+		tf.Name = first
+		return nil
+	}
+	tf.Import = first
+
+	if e.Token != token.PERIOD {
+		return e.NotMatch("PERIOD")
+	}
+
+	ok = s.Next(&e)
+	if !ok {
+		return s.EarlyEnd("INDENT")
+	}
+	if !e.Indent {
+		return e.NotMatch("INDENT")
+	}
+	tf.Name = e.Get()
+	return nil
 }

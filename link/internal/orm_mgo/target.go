@@ -9,6 +9,9 @@ import (
 )
 
 type target struct {
+	coder.NoStructNum
+	coder.NoFuncNum
+
 	dbName string
 
 	path string
@@ -328,11 +331,3 @@ func (t *target) funcDef(isOper bool, f *coder.Function, name string, params []s
 	}
 	f.Def(name, def)
 }
-
-func (t *target) StructNum() int { return 0 }
-
-func (t *target) Struct(idx int, c *coder.Struct, ic *coder.Import) {}
-
-func (t *target) FuncNum() int { return 0 }
-
-func (t *target) Func(idx int, c *coder.Function, ic *coder.Import) {}

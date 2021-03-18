@@ -148,16 +148,23 @@ func DecodeTags(tags []*Tag, name string, doMap DecodeOptionMap, vs ...interface
 		if tag.Name != name {
 			continue
 		}
-		for _, opt := range tag.Options {
-			opt := opt
-			doFunc := doMap[opt.Key]
-			if doFunc == nil {
-				return tag.FmtError(`unknown option "%s"`, opt.Key)
-			}
-			err := doFunc(opt.Line, opt.Value, vs)
-			if err != nil {
-				return opt.Trace(err)
-			}
+		if err := DecodeOptions(tag.Options, doMap, vs...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DecodeOptions(opts []Option, doMap DecodeOptionMap, vs ...interface{}) error {
+	for _, opt := range opts {
+		opt := opt
+		doFunc := doMap[opt.Key]
+		if doFunc == nil {
+			return opt.FmtError(`unknown option "%s"`, opt.Key)
+		}
+		err := doFunc(opt.Line, opt.Value, vs)
+		if err != nil {
+			return opt.Trace(err)
 		}
 	}
 	return nil
