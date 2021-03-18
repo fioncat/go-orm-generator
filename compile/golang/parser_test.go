@@ -49,7 +49,7 @@ func TestParseMultiImports(t *testing.T) {
 	}
 	lines = lines[1:]
 	for idx, line := range lines {
-		ok, err := p.Next(line, nil)
+		ok, err := p.Next(idx, line, nil)
 		if err != nil {
 			fmt.Printf("idx=%d, err=%v\n", idx, err)
 		}
@@ -76,14 +76,18 @@ func TestParseInterface(t *testing.T) {
 		"    Do2(b runner.Many) ([]string, error)",
 		"}",
 	}
-	p := acceptInterface(lines[0])
+	p, err := acceptInterface(0, lines[0], nil, nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	if p == nil {
 		fmt.Println("interface is bad")
 		return
 	}
 	lines = lines[1:]
 	for idx, line := range lines {
-		ok, err := p.Next(line, nil)
+		ok, err := p.Next(idx, line, nil)
 		if err != nil {
 			fmt.Printf("idx: %d, error: %v\n", idx, err)
 			return

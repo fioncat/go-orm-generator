@@ -8,7 +8,7 @@ import (
 	"github.com/fioncat/go-gendb/compile/base"
 	"github.com/fioncat/go-gendb/compile/golang"
 	"github.com/fioncat/go-gendb/database/rdb"
-	"github.com/fioncat/go-gendb/link/internal/convert"
+	"github.com/fioncat/go-gendb/link/internal/deepcopy"
 	"github.com/fioncat/go-gendb/link/internal/orm_mgo"
 	"github.com/fioncat/go-gendb/link/internal/orm_sql"
 	"github.com/fioncat/go-gendb/link/internal/sql"
@@ -22,7 +22,7 @@ type linker interface {
 }
 
 type extractLinker interface {
-	Do(s *golang.Struct, opts []base.Option) ([]coder.Target, error)
+	Do(file *golang.File, s *golang.Struct, opts []base.Option) ([]coder.Target, error)
 }
 
 type Result struct {
@@ -48,7 +48,7 @@ func init() {
 	}
 
 	exLinkers = map[string]extractLinker{
-		"convert": &convert.Linker{},
+		"deepcopy": &deepcopy.Linker{},
 	}
 }
 
@@ -117,8 +117,10 @@ func Do(file *golang.File) (*Result, error) {
 			if exLinker == nil {
 				continue
 			}
-			ts, err := exLinker.Do(stc, opts)
+			ts, err := exLinker.Do(file, stc, opts)
 			if err != nil {
+				err = errors.Trace(file.Path, err)
+				err = errors.OnCompile(file.Path, file.Lines, err)
 				return nil, err
 			}
 			res.Targets = append(res.Targets, ts...)

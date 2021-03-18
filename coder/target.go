@@ -50,4 +50,4 @@ func (*NoVars) Vars(c *Var, imp *Import) {}
 
 type NoImports struct{}
 
-func (*NoImports) Vars(imp *Import) {}
+func (*NoImports) Imports(imp *Import) {}

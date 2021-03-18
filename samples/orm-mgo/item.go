@@ -3,11 +3,13 @@
 package item
 
 // +gen:orm db=true name=Base
+// +gen:copy name=Base
 type _base struct {
 	// +gen:orm flags=[unique]
 	Gpid int64
 
 	// +gen:orm flags=[index]
+	// +gen:copy ignore=true
 	ParentGpid int64
 
 	InSale bool

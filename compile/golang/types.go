@@ -67,18 +67,3 @@ type Field struct {
 
 	Tags []*base.Tag
 }
-
-type TypeFlag struct {
-	Slice   bool
-	Map     bool
-	Pointer bool
-
-	Simple bool
-
-	Import string
-
-	Key string
-
-	Name string
-	Full string
-}
