@@ -17,7 +17,7 @@ func (v *Var) code(c *Coder) bool {
 	}
 	for idx, gp := range v.groups {
 		if len(gp.names) == 0 {
-			panic("found empty VarGroup")
+			continue
 		}
 		if idx != 0 {
 			c.Empty()

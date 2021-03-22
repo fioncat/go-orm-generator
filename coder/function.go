@@ -2,6 +2,20 @@ package coder
 
 import "strings"
 
+type FunctionGroup struct {
+	funcs []*Function
+}
+
+func (g *FunctionGroup) Add() *Function {
+	f := new(Function)
+	g.funcs = append(g.funcs, f)
+	return f
+}
+
+func (g *FunctionGroup) Gets() []*Function {
+	return g.funcs
+}
+
 type Function struct {
 	name  string
 	comm  string

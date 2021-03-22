@@ -12,5 +12,3 @@ WHERE
 	code IN ('en', 'cn', 'tw', 'th');
 
 -- +gen:end
-
-

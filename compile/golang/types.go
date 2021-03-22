@@ -46,3 +46,24 @@ func (m *Method) FmtError(a string, b ...interface{}) error {
 	err := fmt.Errorf(a, b...)
 	return errors.Trace(m.line, err)
 }
+
+type Struct struct {
+	Line int
+
+	Comment string
+
+	Name   string
+	Fields []*Field
+
+	Tags []*base.Tag
+}
+
+type Field struct {
+	Line int
+
+	Name    string
+	Type    string
+	Comment string
+
+	Tags []*base.Tag
+}

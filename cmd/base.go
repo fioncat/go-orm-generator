@@ -5,10 +5,12 @@ import (
 	"os"
 
 	"github.com/fioncat/go-gendb/cmd/c/cgo"
+	"github.com/fioncat/go-gendb/cmd/c/corm"
 	"github.com/fioncat/go-gendb/cmd/c/csql"
 	"github.com/fioncat/go-gendb/cmd/clean"
 	"github.com/fioncat/go-gendb/cmd/conn"
 	"github.com/fioncat/go-gendb/cmd/gen"
+	"github.com/fioncat/go-gendb/cmd/gen/sql_model"
 	"github.com/fioncat/go-gendb/cmd/tools/check"
 	"github.com/fioncat/go-gendb/cmd/tools/exec"
 	"github.com/fioncat/go-gendb/misc/cmdt"
@@ -20,7 +22,11 @@ var cmds = make(map[string]*cmdt.Command)
 func init() {
 	cmds["cgo"] = cgo.Cmder
 	cmds["csql"] = csql.Cmder
+	cmds["corm"] = corm.Cmder
+
 	cmds["gen"] = gen.Cmder
+	cmds["gen-sql-model"] = sql_model.Cmder
+
 	cmds["conn"] = conn.Cmder
 	cmds["clean"] = clean.Cmder
 	cmds["check"] = check.Cmder

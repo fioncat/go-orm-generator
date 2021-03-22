@@ -11,7 +11,10 @@ import (
 )
 
 type target struct {
-	c *conf
+	coder.NoStructs
+	coder.NoFuncs
+
+	conf map[string]string
 
 	file *golang.File
 
@@ -120,7 +123,7 @@ func (t *target) FuncNum() int {
 }
 
 func (t *target) Func(idx int, c *coder.Function, ic *coder.Import) {
-	ic.Add(t.c.runName, t.c.runPath)
+	ic.Add(t.conf[runName], t.conf[runPath])
 
 	m := t.methods[idx]
 	for _, impName := range m.base.Imports {
@@ -357,8 +360,8 @@ func (t *target) body(c *coder.Function, m *method, pre, rep, sqlName string) {
 		case execResult:
 			call = "Exec"
 		}
-		c.P(0, "return ", t.c.runName, ".", call, "(",
-			t.c.dbUse, ", ", sqlName, ", ", rep, ", ", pre, ")")
+		c.P(0, "return ", t.conf[runName], ".", call, "(",
+			t.conf[runName], ", ", sqlName, ", ", rep, ", ", pre, ")")
 		return
 	}
 
@@ -383,7 +386,7 @@ func (t *target) body(c *coder.Function, m *method, pre, rep, sqlName string) {
 
 	if m.Type == queryOne {
 		c.P(0, "var o ", retTypeFull)
-		c.P(0, "err := ", t.c.runName, ".QueryOne(", t.c.dbUse,
+		c.P(0, "err := ", t.conf[runName], ".QueryOne(", t.conf[dbUse],
 			", ", sqlName, ", ", rep, ", ", pre,
 			", func(rows *sql.Rows) error {")
 		if m.base.RetPointer {
@@ -400,7 +403,7 @@ func (t *target) body(c *coder.Function, m *method, pre, rep, sqlName string) {
 	}
 
 	c.P(0, "var os ", retTypeFull)
-	c.P(0, "err := ", t.c.runName, ".QueryMany(", t.c.dbUse,
+	c.P(0, "err := ", t.conf[runName], ".QueryMany(", t.conf[dbUse],
 		", ", sqlName, ", ", rep, ", ", pre,
 		", func(rows *sql.Rows) error {")
 	if m.base.RetPointer {

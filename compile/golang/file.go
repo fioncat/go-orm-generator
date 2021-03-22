@@ -13,12 +13,21 @@ import (
 
 const commentPrefix = "//"
 
+type acceptAction func(int, string, []*base.Tag, []string) (base.ScanParser, error)
+
 var (
 	packageParser base.LineParser = new(_packageParser)
 	importParser  base.LineParser = new(_singleImportParser)
+
+	acceptActions = []acceptAction{
+		acceptInterface,
+		acceptStruct,
+	}
 )
 
 type File struct {
+	Lines []string
+
 	Type string
 	Path string
 
@@ -27,6 +36,8 @@ type File struct {
 	Imports []*Import
 
 	Interfaces []*Interface
+
+	Structs []*Struct
 
 	Options []base.Option
 }
@@ -52,6 +63,7 @@ func readLines(path string, lines []string) (*File, error) {
 	start := time.Now()
 	file := new(File)
 	file.Path = path
+	file.Lines = lines
 
 	acceptNext := func(idx int, tag *base.Tag) (bool, error) {
 		if tag != nil {
@@ -82,6 +94,7 @@ func readLines(path string, lines []string) (*File, error) {
 	}
 
 	var tags []*base.Tag
+	var comms []string
 	for idx < len(lines) {
 		line := lines[idx]
 		line = strings.TrimSpace(line)
@@ -96,6 +109,10 @@ func readLines(path string, lines []string) (*File, error) {
 			}
 			if tag != nil {
 				tags = append(tags, tag)
+			} else {
+				comm := strings.TrimPrefix(line, commentPrefix)
+				comm = strings.TrimSpace(comm)
+				comms = append(comms, comm)
 			}
 			idx++
 			continue
@@ -119,26 +136,41 @@ func readLines(path string, lines []string) (*File, error) {
 			file.Imports = append(file.Imports, imps...)
 			continue
 		}
-		p, err := acceptInterface(idx, line, tags)
-		if err != nil {
-			return nil, errors.Trace(idx+1, err)
+
+		var p base.ScanParser
+		var err error
+		for _, accept := range acceptActions {
+			p, err = accept(idx, line, tags, comms)
+			if err != nil {
+				return nil, errors.Trace(idx+1, err)
+			}
+			if p != nil {
+				comms = nil
+				break
+			}
 		}
 		if p == nil {
 			idx++
 			continue
 		}
-		tags = nil
-
 		err = base.ScanLines(commentPrefix, p, lines, &idx)
 		if err != nil {
 			return nil, errors.Trace(idx+1, err)
 		}
+		v := p.Get()
+		switch v.(type) {
+		case *Struct:
+			file.Structs = append(file.Structs,
+				v.(*Struct))
 
-		inter := p.Get().(*Interface)
-		file.Interfaces = append(file.Interfaces, inter)
+		case *Interface:
+			file.Interfaces = append(file.Interfaces,
+				v.(*Interface))
+		}
+		tags = nil
 	}
-	log.Infof("[c] %s, %d inter(s), took: %v",
-		path, len(file.Interfaces), time.Since(start))
+	log.Infof("[compile] [golang] [%v] %s, %d inter(s)",
+		time.Since(start), path, len(file.Interfaces))
 
 	return file, nil
 }

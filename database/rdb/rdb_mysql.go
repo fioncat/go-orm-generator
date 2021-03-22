@@ -34,7 +34,7 @@ func mysqlConnect(conn *conn.Config) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("connect to database: %s", dsn)
+	log.Infof("[database] [mysql] connect: %s", dsn)
 	return db, nil
 }
 
@@ -252,4 +252,23 @@ func (*mysqlOper) ConvertType(sqlType string) string {
 		return "string"
 	}
 	return "string"
+}
+
+func (*mysqlOper) SqlType(goType string) string {
+	switch goType {
+	case "int8", "uint8", "bool", "sql.NullBool":
+		return "TINYINT"
+	case "int32", "int", "uint32", "sql.NullInt32":
+		return "INT"
+	case "int64", "uint64", "sql.NullInt64":
+		return "BIGINT"
+	case "float32":
+		return "FLOAT"
+	case "float64":
+		return "DOUBLE"
+	case "time.Time", "sql.NullTime":
+		return "DATETIME"
+	}
+
+	return "VARCHAR(256)"
 }

@@ -80,9 +80,27 @@ func Export(s string) string {
 		return ""
 	}
 	if len(s) == 1 {
-		return string(unicode.ToLower(rune(s[0])))
+		return string(unicode.ToUpper(rune(s[0])))
 	}
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
+}
+
+func IsExport(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	h := rune(s[0])
+	return unicode.IsUpper(h)
+}
+
+func UnExport(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	if len(s) == 1 {
+		return string(unicode.ToLower(rune(s[0])))
+	}
+	return string(unicode.ToLower(rune(s[0]))) + s[1:]
 }
 
 func joins(vs []interface{}) string {
@@ -91,4 +109,21 @@ func joins(vs []interface{}) string {
 		strs[idx] = fmt.Sprint(v)
 	}
 	return strings.Join(strs, "")
+}
+
+func DbName(name string) string {
+	rs := []rune(name)
+	result := make([]rune, 0, len(rs))
+	for idx, r := range rs {
+		if unicode.IsUpper(r) {
+			lr := unicode.ToLower(r)
+			if idx != 0 {
+				result = append(result, '_')
+			}
+			result = append(result, lr)
+			continue
+		}
+		result = append(result, r)
+	}
+	return string(result)
 }

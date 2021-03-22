@@ -85,8 +85,8 @@ func Do(arg *Arg) error {
 		if err != nil {
 			return err
 		}
-		log.Infof("[gen] %s, name=%s, took %v",
-			t.Path(), t.Name(), time.Since(start))
+		log.Infof("[gen] [%v] %s, name=%s",
+			time.Since(start), t.Path(), t.Name())
 	}
 	return nil
 }
@@ -111,6 +111,18 @@ func gen(res *link.Result, t coder.Target) (*coder.Coder, error) {
 	varCoder := new(coder.Var)
 	t.Vars(varCoder, importCoder)
 	c.AddSub(varCoder)
+
+	sg := new(coder.StructGroup)
+	t.Structs(sg)
+	for _, s := range sg.Gets() {
+		c.AddSub(s)
+	}
+
+	fg := new(coder.FunctionGroup)
+	t.Funcs(fg)
+	for _, f := range fg.Gets() {
+		c.AddSub(f)
+	}
 
 	for idx := 0; idx < t.StructNum(); idx++ {
 		structCoder := new(coder.Struct)

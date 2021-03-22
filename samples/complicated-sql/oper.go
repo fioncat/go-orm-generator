@@ -9,7 +9,7 @@ func getDB() *sql.DB {
 	return nil
 }
 
-// +gen:BaseOper base.sql
+// +gen:sql name=BaseOper file=base.sql
 type baseOper interface {
 	// +gen:auto-ret
 	Get(id int64) (*Base, error)
@@ -46,7 +46,7 @@ type baseOper interface {
 	ShipmentTypes(uid string) ([]ShipmentType, error)
 }
 
-// +gen:FestivalOper festival.sql
+// +gen:sql name=FestivalOper file=festival.sql
 type festivalOper interface {
 	// +gen:auto-ret
 	List(now string) ([]Festival, error)
@@ -54,13 +54,13 @@ type festivalOper interface {
 	Get(now string) ([]Festival, error)
 }
 
-// +gen:LangOper lang.sql
+// +gen:sql name=LangOper file=lang.sql
 type langOper interface {
 	// +gen:auto-ret
 	GetLangs() ([]*Lang, error)
 }
 
-// +gen:SkuOper sku.sql
+// +gen:sql name=SkuOper file=sku.sql
 type skuOper interface {
 	// +gen:auto-ret
 	Gets(id int64) ([]*Sku, error)
