@@ -241,7 +241,7 @@ func (*mysqlOper) ConvertType(sqlType string) string {
 	case strings.HasPrefix(sqlType, "TINYINT"):
 		return "int32"
 	case strings.HasPrefix(sqlType, "FLOAT"):
-		return "float32"
+		return "float64"
 	case strings.HasPrefix(sqlType, "DOUBLE"):
 		return "float64"
 	case strings.HasPrefix(sqlType, "DECIMAL"):
